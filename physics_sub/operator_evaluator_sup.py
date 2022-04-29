@@ -14,6 +14,10 @@ class ReservoirOperators(operator_set_evaluator_iface):
         self.min_z = property_container.min_z
         self.property = property_container
         self.thermal = thermal
+        self.E_mat = np.array([[1, 0, 0, 0, 0],      # elimination matrix, to transform comp to elem
+              [0, 1, 0, 0, 0],
+              [0, 0, 1, 0, 1],
+              [0, 0, 0, 1, 1]])
 
     def evaluate(self, state, values):
         """
@@ -26,18 +30,21 @@ class ReservoirOperators(operator_set_evaluator_iface):
         vec_state_as_np = np.asarray(state)
         pressure = vec_state_as_np[0]
 
-        nc = self.property.nc
-        nph = self.property.nph
-        nm = self.property.nm
-        nc_fl = nc - nm
-        ne = nc + self.thermal
-
+        nc = self.property.nc  # number components
+        ne = self.property.n_e  # number of elements
+        nph = self.property.nph  # number of phases
+        # nm = self.property.nm  # number of minerals
+        # nc_fl = nc - nm  # number of fluids (aq + gas)
+        neq = ne + self.thermal  # number of equations
+        neq_c = nc + self.thermal
+        print('nc',nc)
+        # Total needs to be total of element based, as this will be the size of values
         #       al + bt        + gm + dlt + chi     + rock_temp por    + gr/cap  + por
-        total = ne + ne * nph + nph + ne + ne * nph + 3 + 2 * nph + 1
+        total = neq + neq * nph + nph + neq + neq * nph + 3 + 2 * nph + 1  # Element based
 
-        for i in range(total):
-            values[i] = 0
-
+        #for i in range(total):
+        #    values[i] = 0
+        values = np.zeros(total)
         #  some arrays will be reused in thermal
         (self.sat, self.x, rho, self.rho_m, self.mu, self.kr, self.pc, self.ph) = self.property.evaluate(state)
 
@@ -45,47 +52,72 @@ class ReservoirOperators(operator_set_evaluator_iface):
 
         density_tot = np.sum(self.sat * self.rho_m)
         zc = np.append(vec_state_as_np[1:nc], 1 - np.sum(vec_state_as_np[1:nc]))
-        phi = 1 - np.sum(zc[nc_fl:nc])
-
-        """ CONSTRUCT OPERATORS HERE """
+        # zc = vec_state_as_np[1:]    # We receive the components from reaktoro
+        phi = 1
+        """ CONSTRUCT OPERATORS HERE """  # need to do matrix vector multiplication
 
         """ Alpha operator represents accumulation term """
-        for i in range(nc_fl):
-            values[i] = self.compr * density_tot * zc[i]
-        
-        """ and alpha for mineral components """
-        for i in range(nm):
-            values[i + nc_fl] = self.property.solid_dens[i] * zc[i + nc_fl]
+        alpha = np.zeros(nc)
+        beta = np.zeros(nc)
+        chi = np.zeros(nph*nc)
 
-        """ Beta operator represents flux term: """
+        for i in range(nc):
+            #values[i] = self.compr * density_tot * zc[i]
+            alpha[i] = self.compr * density_tot * zc[i]
+        for i in range(self.E_mat.shape[0]):
+            values[i] = np.sum(np.multiply(self.E_mat[i], alpha[i]))
+        #print('alpha', alpha)
+        """ and alpha for mineral components """
+        #for i in range(nm):
+        #    values[i + nc_fl] = self.property.solid_dens[i] * zc[i + nc_fl]
+
+        """ Beta operator represents flux term: """  # Here we can keep nc_fl
         for j in self.ph:
-            shift = ne + ne * j
-            for i in range(nc_fl):
-                values[shift + i] = self.x[j][i] * self.rho_m[j] * self.kr[j] / self.mu[j]
+            #print('beta',beta)
+            shift = neq + neq * j   # e.g. ph = [0,2], shift is multiplied by 0 and 2
+            #print('betashift',shift)
+            for i in range(nc):
+                beta[i] = self.x[j][i] * self.rho_m[j] * self.kr[j] / self.mu[j]
+                #values[shift + i] = self.x[j][i] * self.rho_m[j] * self.kr[j] / self.mu[j]
+            for i in range(self.E_mat.shape[0]):
+                values[shift+i] = np.sum(np.multiply(self.E_mat[i], beta[i]))
 
         """ Gamma operator for diffusion (same for thermal and isothermal) """
-        shift = ne + ne * nph
+        shift = neq + neq * nph
+        #print('gammashift',shift)
         for j in self.ph:
+            gamma = self.compr * self.sat[j]
             values[shift + j] = self.compr * self.sat[j]
+            #print('gamma', gamma)
 
         """ Chi operator for diffusion """
         shift += nph
+        #print('chishift',shift)
         for i in range(nc):
             for j in self.ph:
-                values[shift + i * nph + j] = self.property.diff_coef * self.x[j][i] * self.rho_m[j]
+                chi[i*nph+j] = self.property.diff_coef * self.x[j][i] * self.rho_m[j]
+                #print('chi', chi)
+                #values[shift + i * nph + j] = self.property.diff_coef * self.x[j][i] * self.rho_m[j]
+        for i in range(self.E_mat.shape[0]):
+            for j in self.ph:
+                values[shift+i*nph+j] = np.sum(np.multiply(self.E_mat[i], chi[i*nph+j]))
+
 
         """ Delta operator for reaction """
-        shift += nph * ne
+        shift += nph * neq
+        #print('deltashift',shift)
         if self.property.kinetic_rate_ev:
-            kinetic_rate = self.property.kinetic_rate_ev.evaluate(self.x, zc[nc_fl:])
-            for i in range(ne):
+            # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self.x, zc[nc_fl:])
+            kinetic_rate = [0,0,1e-20,1e-20]
+            for i in range(neq):
                 values[shift + i] = kinetic_rate[i]
 
         """ Gravity and Capillarity operators """
-        shift += ne
+        shift += neq
+        #print('gravshift',shift)
         # E3-> gravity
         for i in self.ph:
-            values[shift + 3 + i] = rho[i]
+            values[shift + 3 + i] = rho[i]  # why 3?
 
         # E4-> capillarity
         for i in self.ph:
@@ -94,7 +126,7 @@ class ReservoirOperators(operator_set_evaluator_iface):
         values[shift + 3 + 2 * nph] = phi
 
         #print(state, values)
-
+        #exit()
         return 0
 
 class WellOperators(operator_set_evaluator_iface):
