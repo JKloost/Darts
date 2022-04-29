@@ -1,14 +1,16 @@
 import numpy as np
 
 class property_container:
-    def __init__(self, phases_name, components_name, Mw, Cm=0, min_z=1e-11,
+    def __init__(self, phases_name, components_name, elements_name, Mw, Cm=0, min_z=1e-11,
                  diff_coef=0, rock_comp=1e-6, solid_dens=[]):
         super().__init__()
         # This class contains all the property evaluators required for simulation
         self.nph = len(phases_name)
         self.nm = len(solid_dens)
         self.nc = len(components_name)
+        self.n_e = len(elements_name)
         self.components_name = components_name
+        self.elements_name = elements_name
         self.phases_name = phases_name
         self.min_z = min_z
         self.Mw = Mw
@@ -16,6 +18,7 @@ class property_container:
         self.solid_dens = solid_dens
         for i in range(self.nm):
             solid_dens[i] /= Mw[i + self.nc - self.nm]
+
         self.rock_comp = rock_comp
         self.p_ref = 1.0
         self.diff_coef = diff_coef
@@ -101,7 +104,7 @@ class property_container:
 
         if len(ph) == 1:
             self.x[ph[0]] = zc
-        # Dead code?
+
         return ph
 
 
@@ -127,13 +130,15 @@ class property_container:
         # two-phase flash - assume water phase is always present and water component last
 
         ph = self.run_flash(pressure, zc)
+        # Density from this is still in kg/m3 - need to make option whether you want set numbers or from Reaktoro
 
         for j in ph:
             M = 0
             # molar weight of mixture
             for i in range(self.nc):
                 M += self.Mw[i] * self.x[j][i]
-            self.dens[j] = self.density_ev[self.phases_name[j]].evaluate(pressure, self.x[j][0])  # output in [kg/m3]
+            #self.dens[j] = self.density_ev[self.phases_name[j]].evaluate(pressure, self.x[j][0])  # output in [kg/m3]
+            self.dens = self.run_density(pressure, zc)
             self.dens_m[j] = self.dens[j] / M
             self.mu[j] = self.viscosity_ev[self.phases_name[j]].evaluate()  # output in [cp]
 
