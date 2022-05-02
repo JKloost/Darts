@@ -29,7 +29,7 @@ class Model(DartsModel):
         trans_exp = 3
         perm = 100 #/ (1 - solid_init) ** trans_exp
         """Reservoir"""
-        nx = 1000
+        nx = 10
         self.reservoir = StructReservoir(self.timer, nx=nx, ny=1, nz=1, dx=1, dy=1, dz=1, permx=perm, permy=perm,
                                          permz=perm/10, poro=1, depth=1000)
 
@@ -84,10 +84,12 @@ class Model(DartsModel):
         # zc_fl_inj_stream_gas = [1 - 2 * self.zero / (1 - solid_inject), self.zero / (1 - solid_inject)]
         # zc_fl_inj_stream_gas = zc_fl_inj_stream_gas + [1 - sum(zc_fl_inj_stream_gas)]
         # self.inj_stream = [x * (1 - solid_inject) for x in zc_fl_inj_stream_gas]
-        # self.inj_stream = [self.zero,0.99,self.zero,self.zero,self.zero]
 
-        self.inj_stream = [0.99, self.zero, self.zero, self.zero, self.zero]
-        self.ini_stream = [0.9, self.zero, 0.03, 0.03, 0.03]
+        # self.inj_stream = [self.zero, 0.99, self.zero, self.zero, self.zero]
+        #self.inj_stream = [0.99, self.zero, self.zero, self.zero, self.zero]
+        self.inj_stream = [0.05, 0.95, self.zero, self.zero, self.zero]
+        self.ini_stream = [0.7, 0.05, 0.05, 0.05, 0.15]
+        # self.ini_stream = [0.9, self.zero, 0.02, 0.02, 0.06]
 
         # Some newton parameters for non-linear solution:
         self.params.first_ts = 0.001
@@ -101,7 +103,7 @@ class Model(DartsModel):
         self.params.newton_type = sim_params.newton_local_chop
         # self.params.newton_params[0] = 0.2
 
-        self.runtime = 1000
+        self.runtime = 0.01
 
         self.timer.node["initialization"].stop()
 
@@ -147,7 +149,6 @@ class Model(DartsModel):
         density_m = np.zeros((self.reservoir.nb, 3))
 
         Xn = np.array(self.physics.engine.X, copy=True)
-
 
         P = Xn[0:self.reservoir.nb * nc:nc]
         z_caco3 = 1 - (Xn[1:self.reservoir.nb * nc:nc] + Xn[2:self.reservoir.nb * nc:nc] + Xn[3:self.reservoir.nb * nc:nc])
@@ -266,32 +267,33 @@ class Model(DartsModel):
         plt.show()
 
 
-
 class model_properties(property_container):
-    def __init__(self, phases_name, components_name, elements_name, Mw, min_z=1e-11,
+    def __init__(self, phases_name, components_name, elements_name, Mw, min_z=1e-12,
                  diff_coef=0, rock_comp=1e-6, solid_dens=[]):
         # Call base class constructor
         super().__init__(phases_name, components_name, elements_name, Mw, min_z=min_z, diff_coef=diff_coef,
                          rock_comp=rock_comp, solid_dens=solid_dens)
-        # Check: here change density from Reaktoro
 
-    def run_density(self, pressure, zc):
-        nu,x,y,zc,density = Flash_Reaktoro(zc, 320, pressure*100000, self.elements_name, self.min_z)
+    def run_density(self, pressure, ze):
+        nu, x, zc, density = Flash_Reaktoro(ze, 320, pressure*100000, self.elements_name, self.min_z)
         return density
 
         # introduce temperature
 
     def run_flash(self, pressure, ze):  # Change this to include 3 phases
+        # print(ze)
         # Make every value that is the min_z equal to 0, as Reaktoro can work with 0, but not transport
-        for i in range(len(ze)):
-            if ze[i] < self.min_z:
-                ze[i] = 0
-                ze = [float(i) / sum(ze) for i in ze]
-        nu, x, y, zc, density = Flash_Reaktoro(ze, 320, pressure*100000, self.elements_name, self.min_z)
+        # normalise = False
+        # for i in range(len(ze)):
+        #     if ze[i] <= self.min_z:
+        #         ze[i] = 0
+        #         normalise = True
+        # if normalise:
+        #     for i in range(len(ze)):
+        #         ze = [float(i) / sum(ze) for i in ze]
+        # print('ze after norm', ze)
+        self.nu, self.x, zc, density = Flash_Reaktoro(ze, 320, pressure*100000, self.elements_name, self.min_z)
         # z_c Output of reaktoro has no values less than z_c and has been renormalised
-        self.x = x
-        self.nu = nu
-        #print('nu',nu)
         '''
         Reaktoro input z_e, will output the components. Input also is the temp in K and pressure in Pa
         Output is the phase fractions (L,V,S, gotten from volume occupied), liq and vapor fraction (x,y)
@@ -304,39 +306,35 @@ class model_properties(property_container):
         # Check if S<minimum, otherwise, set it to minimum value
         # Solid phase always present
 
-        ph = list(range(3))  # ph = range(number of total phases)
+        ph = list(range(len(self.nu)))  # ph = range(number of total phases)
 
         for i in range(len(self.nu)):
-            if i > 2 and self.nu[i] < self.min_z:
+            if i > 1 and self.nu[i] < self.min_z:
                 self.nu[i] = self.min_z
                 self.nu = [float(i) / sum(self.nu) for i in self.nu]
 
         if self.nu[0] < self.min_z:     # if vapor phase is less than min_z, it does not exist
             del ph[0]                   # remove entry of vap
             self.nu[0] = 0
+            self.x[0] = np.zeros(len(zc))
             self.nu = [float(i) / sum(self.nu) for i in self.nu]
 
         elif self.nu[1] < self.min_z:   # if liq phase is less than min_z, it does not exist
             del ph[1]
             self.nu[1] = 0
+            self.x[1] = np.zeros(len(zc))
             self.nu = [float(i) / sum(self.nu) for i in self.nu]
-        # Check: this is only for negative flash
-        # for i in range(self.nc - 1):
-        #     for j in range(2):
-        #         self.x[j][i] = xr[j][i]
 
-        # self.nu[0] = V
-        # self.nu[1] = L
-        # self.nu[2] = S
-        #print('nu after corr', self.nu)
-        return ph
+        # exit()
+        return ph, zc
 
 
 def Flash_Reaktoro(z_e, T, P, elem, min_z):
     m = Reaktoro()
     m.addingproblem(T, P, z_e, elem)
-    nu, x, y, z_c, density = m.output(min_z)  # this outputs comp h20, co2, ca, co3, caco3
-    return nu, x, y, z_c, density
+    nu, x, z_c, density = m.output(min_z)  # this outputs comp h20, co2, ca, co3, caco3
+    del m
+    return nu, x, z_c, density
 
 class Reaktoro():
     def __init__(self):
@@ -361,7 +359,7 @@ class Reaktoro():
 
         state = ChemicalState(self.system)
         self.solver.solve(state, problem)
-        self.properties.update(temp, pres, z_e)
+        #self.properties.update(temp, pres, z_e)
         self.states.append(state)           # append the solved eq state to states
 
     def output_clean(self):
@@ -413,10 +411,13 @@ class Reaktoro():
                 print('######################NEGATIVE AQUEOUS VOLUME WARNING##########################################')
             mol_total[i] = mol_total_aq[i] + mol_total_gas[i] + mol_total_solid[i]
             zc = [(H2O[i]+H2O_gas[i])/mol_total[i], (CO2[i]+CO2_gas[i])/mol_total[i], Ca[i]/mol_total[i], CO3[i]/mol_total[i], (CaCO3[i]+Calcite[i])/mol_total[i]]
+            norm = False
             for q in range(len(zc)):
                 if zc[q] < min_z:
                     zc[q] = min_z
-                    zc = [float(q) / sum(zc) for q in zc]
+                    norm = True
+            if norm:
+                zc = [float(q) / sum(zc) for q in zc]
             S_w[i] = volume_aq[i] / volume_tot[i]
             S_g[i] = volume_gas[i] / volume_tot[i]
             S_s[i] = volume_solid[i] / volume_tot[i]  # * density_solid = solid mass
@@ -430,7 +431,7 @@ class Reaktoro():
             density = np.append(density, [density_gas, density_aq, density_solid])
         nu = [V, L, S]
         x = [y, x, x_calcite]
-        return nu, x, y, z_c, density
+        return nu, x, z_c, density
 
 
 # def Flash_Reaktoro_kin(z_beta, T, P):
