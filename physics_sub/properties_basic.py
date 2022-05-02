@@ -166,7 +166,6 @@ class kinetic_basic():
             self.kinetic_rate[1] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
             self.kinetic_rate[2] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
             self.kinetic_rate[-1] = - self.kinetic_rate[1]
-            print(self.kinetic_rate)
             self.kinetic_rate = [1e-20,1e-20,1e-20,1e-20,1e-20]
         return self.kinetic_rate
 

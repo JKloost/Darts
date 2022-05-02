@@ -16,6 +16,8 @@ class Compositional(PhysicsBase):
         self.timer = timer.node["simulation"]
         self.components = property_container.components_name
         self.nc = property_container.nc
+        self.ne = property_container.n_e
+
         self.phases = property_container.phases_name
         self.nph = property_container.nph
         self.n_vars = self.nc + thermal
@@ -122,7 +124,7 @@ class Compositional(PhysicsBase):
         assert isinstance(mesh, conn_mesh)
         nb = mesh.n_blocks
 
-        # set initial pressure
+        # set inital pressure
         pressure = np.array(mesh.pressure, copy=False)
         pressure.fill(uniform_pressure)
 

@@ -93,19 +93,19 @@ class property_container:
             self.sat[2] = self.dens_m[0] * self.dens_m[1] * self.nu[2] / denom
         return
 
-    def run_flash(self, pressure, zc):
-
-        (self.x, self.nu) = self.flash_ev.evaluate(pressure, zc)
-
-        ph = []
-        for j in range(self.nph):
-            if self.nu[j] > 0:
-                ph.append(j)
-
-        if len(ph) == 1:
-            self.x[ph[0]] = zc
-
-        return ph
+    # def run_flash(self, pressure, zc):
+    #
+    #     (self.x, self.nu) = self.flash_ev.evaluate(pressure, zc)
+    #
+    #     ph = []
+    #     for j in range(self.nph):
+    #         if self.nu[j] > 0:
+    #             ph.append(j)
+    #
+    #     if len(ph) == 1:
+    #         self.x[ph[0]] = zc
+    #
+    #     return ph
 
 
 
@@ -119,9 +119,7 @@ class property_container:
         # Composition vector and pressure from state:
         vec_state_as_np = np.asarray(state)
         pressure = vec_state_as_np[0]
-
         zc = np.append(vec_state_as_np[1:self.nc], 1 - np.sum(vec_state_as_np[1:self.nc]))
-
         if zc[-1] < 0:
             # print(zc)
             zc = self.comp_out_of_bounds(zc)
@@ -129,7 +127,7 @@ class property_container:
         self.clean_arrays()
         # two-phase flash - assume water phase is always present and water component last
 
-        ph = self.run_flash(pressure, zc)
+        ph, zc = self.run_flash(pressure, zc)
         # Density from this is still in kg/m3 - need to make option whether you want set numbers or from Reaktoro
 
         for j in ph:
@@ -148,7 +146,7 @@ class property_container:
             self.kr[j] = self.rel_perm_ev[self.phases_name[j]].evaluate(self.sat[j])
             self.pc[j] = 0
 
-        return self.sat, self.x, self.dens, self.dens_m, self.mu, self.kr, self.pc, ph
+        return self.sat, self.x, self.dens, self.dens_m, self.mu, self.kr, self.pc, ph, zc
 
     def evaluate_thermal(self, state):
         """
