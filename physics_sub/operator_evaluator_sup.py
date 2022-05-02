@@ -49,7 +49,7 @@ class ReservoirOperators(operator_set_evaluator_iface):
         (self.sat, self.x, rho, self.rho_m, self.mu, self.kr, self.pc, self.ph, zc) = self.property.evaluate(state)
 
         self.compr = (1 + self.property.rock_comp * (pressure - self.property.p_ref))  # compressible rock
-        #print(zc)
+
         density_tot = np.sum(self.sat * self.rho_m)
         # zc = np.append(vec_state_as_np[1:nc], 1 - np.sum(vec_state_as_np[1:nc]))
         # zc = vec_state_as_np[1:]    # We receive the components from reaktoro
@@ -76,6 +76,7 @@ class ReservoirOperators(operator_set_evaluator_iface):
             # print('beta',beta)
             shift = neq + neq * j   # e.g. ph = [0,2], shift is multiplied by 0 and 2
             # print('betashift',shift)
+            beta = np.zeros(nc)
             for i in range(nc):
                 beta[i] = self.x[j][i] * self.rho_m[j] * self.kr[j] / self.mu[j]
                 # values[shift + i] = self.x[j][i] * self.rho_m[j] * self.kr[j] / self.mu[j]
@@ -117,7 +118,7 @@ class ReservoirOperators(operator_set_evaluator_iface):
         # print('gravshift',shift)
         # E3-> gravity
         for i in self.ph:
-            values[shift + 3 + i] = rho[i]  # why 3?
+            values[shift + 3 + i] = rho[i]                                                                                  # why 3?
 
         # E4-> capillarity
         for i in self.ph:
@@ -125,7 +126,7 @@ class ReservoirOperators(operator_set_evaluator_iface):
         # E5_> porosity
         values[shift + 3 + 2 * nph] = phi
 
-        # print(state, values)
+        print(state, values)
         # exit()
         return 0
 
@@ -227,7 +228,7 @@ class WellOperators(operator_set_evaluator_iface):
         # print('deltashift',shift)
         if self.property.kinetic_rate_ev:
             # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self.x, zc[nc_fl:])
-            kinetic_rate = [0, 0, 1e-20, 1e-20]
+            kinetic_rate = [0, 0, 0, 0]
             for i in range(neq):
                 values[shift + i] = kinetic_rate[i]
 
@@ -244,7 +245,7 @@ class WellOperators(operator_set_evaluator_iface):
         # E5_> porosity
         values[shift + 3 + 2 * nph] = phi
 
-        # print(state, values)
+        print(state, values)
         # exit()
         return 0
 
