@@ -205,23 +205,9 @@ class WellOperators(operator_set_evaluator_iface):
 
         """ Gamma operator for diffusion (same for thermal and isothermal) """
         shift = neq + neq * nph
-        # print('gammashift',shift)
-        for j in ph:
-            gamma = self.compr * sat[j]
-            values[shift + j] = self.compr * sat[j]
-            # print('gamma', gamma)
 
         """ Chi operator for diffusion """
         shift += nph
-        # print('chishift',shift)
-        for i in range(nc):
-            for j in ph:
-                chi[i * nph + j] = self.property.diff_coef * x[j][i] * rho_m[j]
-                # print('chi', chi)
-                # values[shift + i * nph + j] = self.property.diff_coef * self.x[j][i] * self.rho_m[j]
-        for i in range(self.E_mat.shape[0]):
-            for j in ph:
-                values[shift + i * nph + j] = np.sum(np.multiply(self.E_mat[i], chi[i * nph + j]))
 
         """ Delta operator for reaction """
         shift += nph * neq
@@ -245,7 +231,7 @@ class WellOperators(operator_set_evaluator_iface):
         # E5_> porosity
         values[shift + 3 + 2 * nph] = phi
 
-        print(state, values)
+        # print(state, values)
         # exit()
         return 0
 
