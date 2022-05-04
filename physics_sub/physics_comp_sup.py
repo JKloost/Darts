@@ -40,7 +40,7 @@ class Compositional(PhysicsBase):
             self.n_axes_max = value_vector([max_p] + [max_z] * (self.ne - 1) + [max_t])
             self.acc_flux_etor = ReservoirThermalOperators(property_container)
             self.acc_flux_w_etor = WellOperators(property_container)  # assume isothermal flow in wells
-            self.engine = eval("engine_super_%s%d_%d_t" % (platform, self.nc, self.nph))()
+            self.engine = eval("engine_super_%s%d_%d_t" % (platform, self.ne, self.nph))()
         else:
             self.vars = ['pressure'] + self.components
             self.n_axes_min = value_vector([min_p] + [min_z] * (self.ne-1))
@@ -103,15 +103,15 @@ class Compositional(PhysicsBase):
         pressure.fill(uniform_pressure)
 
          # set initial composition
-        mesh.composition.resize(nb * (self.nc - 1))
+        mesh.composition.resize(nb * (self.ne - 1))
         composition = np.array(mesh.composition, copy=False)
         # composition[:] = np.array(uniform_composition)
-        if self.nc == 2:
-            for c in range(self.nc - 1):
-                composition[c::(self.nc - 1)] = uniform_composition[:]
+        if self.ne == 2:
+            for c in range(self.ne - 1):
+                composition[c::(self.ne - 1)] = uniform_composition[:]
         else:
-            for c in range(self.nc - 1):  # Denis
-                composition[c::(self.nc - 1)] = uniform_composition[c]
+            for c in range(self.ne - 1):  # Denis
+                composition[c::(self.ne - 1)] = uniform_composition[c]
 
 
     def set_uniform_T_initial_conditions(self, mesh, uniform_pressure, uniform_composition, uniform_temp: list):
@@ -133,10 +133,10 @@ class Compositional(PhysicsBase):
         temperature.fill(uniform_temp)
 
         # set initial composition
-        mesh.composition.resize(nb * (self.nc - 1))
+        mesh.composition.resize(nb * (self.ne - 1))
         composition = np.array(mesh.composition, copy=False)
-        for c in range(self.nc - 1):
-            composition[c::(self.nc - 1)] = uniform_composition[c]
+        for c in range(self.ne - 1):
+            composition[c::(self.ne - 1)] = uniform_composition[c]
 
     def set_boundary_conditions(self, mesh, uniform_pressure, uniform_composition):
         assert isinstance(mesh, conn_mesh)
@@ -145,7 +145,7 @@ class Compositional(PhysicsBase):
         pressure = np.array(mesh.pressure, copy=False)
         pressure.fill(uniform_pressure)
 
-        mesh.composition.resize(mesh.n_blocks * (self.nc - 1))
+        mesh.composition.resize(mesh.n_blocks * (self.ne - 1))
         composition = np.array(mesh.composition, copy=False)
-        for c in range(self.nc - 1):
-            composition[c::(self.nc - 1)] = uniform_composition[c]
+        for c in range(self.ne - 1):
+            composition[c::(self.ne - 1)] = uniform_composition[c]
