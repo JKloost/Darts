@@ -29,7 +29,7 @@ class Model(DartsModel):
         trans_exp = 3
         perm = 100 #/ (1 - solid_init) ** trans_exp
         """Reservoir"""
-        nx = 10
+        nx = 3
         self.reservoir = StructReservoir(self.timer, nx=nx, ny=1, nz=1, dx=1, dy=1, dz=1, permx=perm, permy=perm,
                                          permz=perm/10, poro=1, depth=1000)
 
@@ -87,9 +87,11 @@ class Model(DartsModel):
 
         # self.inj_stream = [self.zero, 0.99, self.zero, self.zero, self.zero]
         #self.inj_stream = [0.99, self.zero, self.zero, self.zero, self.zero]
-        self.inj_stream = [0.05, 0.95, self.zero, self.zero, self.zero]
-        self.ini_stream = [0.7, 0.05, 0.05, 0.05, 0.15]
-        # self.ini_stream = [0.9, self.zero, 0.02, 0.02, 0.06]
+        #self.inj_stream = [0.05, 0.95, self.zero, self.zero, self.zero]
+        self.ini_stream = [0.9, self.zero, 0.05, 0.05]
+        self.inj_stream = [self.zero, 0.99, self.zero, self.zero]
+        # self.ini_stream = [0.75, 0.15, 0.05, 0.05]
+        # self.inj_stream = self.ini_stream
 
         # Some newton parameters for non-linear solution:
         self.params.first_ts = 0.001
@@ -103,7 +105,7 @@ class Model(DartsModel):
         self.params.newton_type = sim_params.newton_local_chop
         # self.params.newton_params[0] = 0.2
 
-        self.runtime = 0.01
+        self.runtime = 1
 
         self.timer.node["initialization"].stop()
 
@@ -281,7 +283,6 @@ class model_properties(property_container):
         # introduce temperature
 
     def run_flash(self, pressure, ze):  # Change this to include 3 phases
-        # print(ze)
         # Make every value that is the min_z equal to 0, as Reaktoro can work with 0, but not transport
         # normalise = False
         # for i in range(len(ze)):
@@ -289,8 +290,7 @@ class model_properties(property_container):
         #         ze[i] = 0
         #         normalise = True
         # if normalise:
-        #     for i in range(len(ze)):
-        #         ze = [float(i) / sum(ze) for i in ze]
+        #     ze = [float(i) / sum(ze) for i in ze]
         # print('ze after norm', ze)
         self.nu, self.x, zc, density = Flash_Reaktoro(ze, 320, pressure*100000, self.elements_name, self.min_z)
         # z_c Output of reaktoro has no values less than z_c and has been renormalised
@@ -316,15 +316,14 @@ class model_properties(property_container):
         if self.nu[0] < self.min_z:     # if vapor phase is less than min_z, it does not exist
             del ph[0]                   # remove entry of vap
             self.nu[0] = 0
-            self.x[0] = np.zeros(len(zc))
+            # self.x[0] = np.zeros(len(zc))
             self.nu = [float(i) / sum(self.nu) for i in self.nu]
 
         elif self.nu[1] < self.min_z:   # if liq phase is less than min_z, it does not exist
             del ph[1]
             self.nu[1] = 0
-            self.x[1] = np.zeros(len(zc))
+            # self.x[1] = np.zeros(len(zc))
             self.nu = [float(i) / sum(self.nu) for i in self.nu]
-
         # exit()
         return ph, zc
 
@@ -411,13 +410,13 @@ class Reaktoro():
                 print('######################NEGATIVE AQUEOUS VOLUME WARNING##########################################')
             mol_total[i] = mol_total_aq[i] + mol_total_gas[i] + mol_total_solid[i]
             zc = [(H2O[i]+H2O_gas[i])/mol_total[i], (CO2[i]+CO2_gas[i])/mol_total[i], Ca[i]/mol_total[i], CO3[i]/mol_total[i], (CaCO3[i]+Calcite[i])/mol_total[i]]
-            norm = False
-            for q in range(len(zc)):
-                if zc[q] < min_z:
-                    zc[q] = min_z
-                    norm = True
-            if norm:
-                zc = [float(q) / sum(zc) for q in zc]
+            # norm = False
+            # for q in range(len(zc)):
+            #     if zc[q] < min_z:
+            #         zc[q] = min_z
+            #         norm = True
+            # if norm:
+            #     zc = [float(q) / sum(zc) for q in zc]
             S_w[i] = volume_aq[i] / volume_tot[i]
             S_g[i] = volume_gas[i] / volume_tot[i]
             S_s[i] = volume_solid[i] / volume_tot[i]  # * density_solid = solid mass
