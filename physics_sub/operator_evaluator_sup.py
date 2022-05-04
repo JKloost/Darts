@@ -109,7 +109,7 @@ class ReservoirOperators(operator_set_evaluator_iface):
         # print('deltashift',shift)
         if self.property.kinetic_rate_ev:
             # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self.x, zc[nc_fl:])
-            kinetic_rate = [0, 0, 0, 0]
+            kinetic_rate = [1e-20, 1e-20, 1e-20, 1e-20]
             for i in range(neq):
                 values[shift + i] = kinetic_rate[i]
 
@@ -214,7 +214,7 @@ class WellOperators(operator_set_evaluator_iface):
         # print('deltashift',shift)
         if self.property.kinetic_rate_ev:
             # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self.x, zc[nc_fl:])
-            kinetic_rate = [0, 0, 0, 0]
+            kinetic_rate = [1e-20, 1e-20, 1e-20, 1e-20]
             for i in range(neq):
                 values[shift + i] = kinetic_rate[i]
 
@@ -347,7 +347,7 @@ class ReservoirThermalOperators(ReservoirOperators):
         nc = self.property.nc
         ne = self.property.n_e
         nph = self.property.nph
-        neq = nc + self.thermal
+        neq = ne + self.thermal
 
         i = nc  # use this numeration for energy operators
         """ Alpha operator represents accumulation term: """

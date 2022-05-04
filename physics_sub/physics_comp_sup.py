@@ -15,6 +15,7 @@ class Compositional(PhysicsBase):
         # Obtain properties from user input during initialization:
         self.timer = timer.node["simulation"]
         self.components = property_container.components_name
+        self.elements = property_container.elements_name
         self.nc = property_container.nc
         self.ne = property_container.n_e
 
@@ -34,16 +35,16 @@ class Compositional(PhysicsBase):
         self.n_ops = NE + self.nph * NE + self.nph + self.nph * NE + NE + 3 + 2 * self.nph + 1
 
         if thermal:
-            self.vars = ['pressure'] + self.components[:-1] + ['temperature']
+            self.vars = ['pressure'] + self.components + ['temperature']
             self.n_axes_min = value_vector([min_p] + [min_z] * (self.ne - 1) + [min_t])
             self.n_axes_max = value_vector([max_p] + [max_z] * (self.ne - 1) + [max_t])
             self.acc_flux_etor = ReservoirThermalOperators(property_container)
             self.acc_flux_w_etor = WellOperators(property_container)  # assume isothermal flow in wells
-            self.engine = eval("engine_super_%s%d_%d_t" % (platform, self.ne, self.nph))()
+            self.engine = eval("engine_super_%s%d_%d_t" % (platform, self.nc, self.nph))()
         else:
-            self.vars = ['pressure'] + self.components[:-1]
-            self.n_axes_min = value_vector([min_p] + [min_z] * (self.ne - 1))
-            self.n_axes_max = value_vector([max_p] + [max_z] * (self.ne - 1))
+            self.vars = ['pressure'] + self.components
+            self.n_axes_min = value_vector([min_p] + [min_z] * (self.ne-1))
+            self.n_axes_max = value_vector([max_p] + [max_z] * (self.ne-1))
             self.acc_flux_etor = ReservoirOperators(property_container)
             self.acc_flux_w_etor = WellOperators(property_container)
             self.engine = eval("engine_super_%s%d_%d" % (platform, self.ne, self.nph))()
