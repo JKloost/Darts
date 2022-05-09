@@ -3,7 +3,7 @@ import numpy as np
 # from src.cubic_main import *
 # from src.Binary_Interactions import *
 # from src.flash_funcs import *
-
+from reaktoro import *
 
 #  dummy function
 class const_fun():
@@ -149,31 +149,30 @@ class PhaseRelPerm:
         return kr
 
 
+# class kinetic_basic():
+#     def __init__(self, equi_prod, kin_rate_cte, ne, combined_ions=True):
+#         self.equi_prod = equi_prod
+#         self.kin_rate_cte = kin_rate_cte
+#         self.kinetic_rate = np.zeros(ne)
+#         self.combined_ions = combined_ions
+#
+#     def evaluate(self, x, nu_sol):
+#         if self.combined_ions:
+#             ion_prod = (x[1][1] / 2) ** 2
+#             self.kinetic_rate[1] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
+#             self.kinetic_rate[-1] = - 0.5 * self.kinetic_rate[1]
+#         else:
+#             ion_prod = x[1][1] * x[1][2]
+#             self.kinetic_rate[1] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
+#             self.kinetic_rate[2] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
+#             self.kinetic_rate[-1] = - self.kinetic_rate[1]
+#         return self.kinetic_rate
+
 class kinetic_basic():
     def __init__(self, equi_prod, kin_rate_cte, ne, combined_ions=True):
-        self.equi_prod = equi_prod
-        self.kin_rate_cte = kin_rate_cte
         self.kinetic_rate = np.zeros(ne)
-        self.combined_ions = combined_ions
 
-    def evaluate(self, x, nu_sol):
-        if self.combined_ions:
-            ion_prod = (x[1][1] / 2) ** 2
-            self.kinetic_rate[1] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
-            self.kinetic_rate[-1] = - 0.5 * self.kinetic_rate[1]
-        else:
-            ion_prod = x[1][1] * x[1][2]
-            self.kinetic_rate[1] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
-            self.kinetic_rate[2] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
-            self.kinetic_rate[-1] = - self.kinetic_rate[1]
-            self.kinetic_rate = [1e-20,1e-20,1e-20,1e-20,1e-20]
-        return self.kinetic_rate
-
-class kinetic_reaktoro():
-    def __init__(self):
-        self.kinetic_rate = np.zeros(len(z_c))
-
-    def evaluate(self, z_c, T, P, dt):
+    def evaluate(self, z_c, T, P):
         editor = ChemicalEditor(Database('supcrt98.xml'))              # Database that Reaktoro uses
         editor.addAqueousPhase("H2O(l) CO2(aq) Ca++ CO3-- CaCO3(aq)")  # Aqueous phase with elem
         editor.addGaseousPhase('H2O(g) CO2(g)')
@@ -187,14 +186,11 @@ class kinetic_reaktoro():
         system = ChemicalSystem(editor)        # Set the system
         reactions = ReactionSystem(editor)     # Set reaction system for kinetics
 
-        solver = EquilibriumSolver(system)    # solves the eq system
         kinetic_solver = KineticSolver(reactions)
 
         partition = Partition(system)  # Partition the system into equilibrium and kinetic reactions
         partition.setKineticSpecies(["Calcite"])  # Set which species needs to be defined kinetically
         kinetic_solver.setPartition(partition)
-        # Two version can be coded with the same solution. One uses the EquilibriumProblem function,
-        # Other will use the state function. Both need to output a state in order to be solved by EquilibriumSolver
 
         problem = EquilibriumProblem(system)
         problem.setPartition(partition)
@@ -202,12 +198,19 @@ class kinetic_reaktoro():
         problem.setTemperature(T, 'kelvin')
         problem.setPressure(P, 'pascal')
 
+        # Add the components to the problem
         problem.add('H2O', z_c[0], 'mol')
         problem.add('CO2', z_c[1], 'mol')
         problem.add('Ca++', z_c[2], 'mol')
         problem.add('CO3--', z_c[3], 'mol')
+        problem.add('Calcite', z_c[4], 'mol')
 
         state = ChemicalState(system)
+        state.scaleVolume(1.0, "m3")
+
         properties = state.properties()
         self.kinetic_rate = ReactionSystem(editor).rates(properties).val
-        return self.kinetic_rate
+        if np.isnan(self.kinetic_rate):
+            self.kinetic_rate = 0
+            print('###################################kinetic rate is nan#############################################')
+        return [0, 0, -self.kinetic_rate, -self.kinetic_rate]

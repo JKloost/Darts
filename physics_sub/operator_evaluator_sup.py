@@ -46,8 +46,14 @@ class ReservoirOperators(operator_set_evaluator_iface):
             values[i] = 0
         # values = np.zeros(total)
         #  some arrays will be reused in thermal
-        (self.sat, self.x, rho, self.rho_m, self.mu, self.kr, self.pc, self.ph, zc) = self.property.evaluate(state)
-
+        (self.sat, self.x, rho, self.rho_m, self.mu, self.kr, self.pc, self.ph, zc, kinetic_rate) = self.property.evaluate(state)
+        # norm = False
+        # for i in range(len(zc)):
+        #     if zc[i] < 1e-11:
+        #         zc[i] = 0
+        #         norm = True
+        # if norm == True:
+        #     zc = [float(q) / sum(zc) for q in zc]
         self.compr = (1 + self.property.rock_comp * (pressure - self.property.p_ref))  # compressible rock
 
         density_tot = np.sum(self.sat * self.rho_m)
@@ -108,8 +114,9 @@ class ReservoirOperators(operator_set_evaluator_iface):
         shift += nph * neq
         # print('deltashift',shift)
         if self.property.kinetic_rate_ev:
-            # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self.x, zc[nc_fl:])
-            kinetic_rate = [1e-20, 1e-20, 1e-20, 1e-20]
+            # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self.x, zc[4:])
+            # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self,zc)
+            # kinetic_rate = [0,0,0,0]
             for i in range(neq):
                 values[shift + i] = kinetic_rate[i]
 
@@ -118,7 +125,7 @@ class ReservoirOperators(operator_set_evaluator_iface):
         # print('gravshift',shift)
         # E3-> gravity
         for i in self.ph:
-            values[shift + 3 + i] = rho[i]                                                                                  # why 3?
+            values[shift + 3 + i] = rho[i]  # 3 = thermal operators
 
         # E4-> capillarity
         for i in self.ph:
@@ -126,7 +133,7 @@ class ReservoirOperators(operator_set_evaluator_iface):
         # E5_> porosity
         values[shift + 3 + 2 * nph] = phi
 
-        print(state, values)
+        print('reservoir',state, values)
         # exit()
         return 0
 
@@ -168,8 +175,14 @@ class WellOperators(operator_set_evaluator_iface):
         for i in range(total):
             values[i] = 0
 
-        (sat, x, rho, rho_m, mu, kr, pc, ph,zc) = self.property.evaluate(state)
-
+        (sat, x, rho, rho_m, mu, kr, pc, ph, zc, kinetic_rate) = self.property.evaluate(state)
+        # norm = False
+        # for i in range(len(zc)):
+        #     if zc[i] < 1e-12:
+        #         zc[i] = 1e-12
+        #         norm = True
+        # if norm == True:
+        #     zc = [float(q) / sum(zc) for q in zc]
         self.compr = (1 + self.property.rock_comp * (pressure - self.property.p_ref))  # compressible rock
 
         density_tot = np.sum(sat * rho_m)
@@ -213,8 +226,9 @@ class WellOperators(operator_set_evaluator_iface):
         shift += nph * neq
         # print('deltashift',shift)
         if self.property.kinetic_rate_ev:
-            # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self.x, zc[nc_fl:])
-            kinetic_rate = [1e-20, 1e-20, 1e-20, 1e-20]
+            # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self.x, zc)
+            # kinetic_rate = self.property.kinetic_reaktoro.evaluate(
+            kinetic_rate = [0,0,0,0]
             for i in range(neq):
                 values[shift + i] = kinetic_rate[i]
 
@@ -223,15 +237,16 @@ class WellOperators(operator_set_evaluator_iface):
         # print('gravshift',shift)
         # E3-> gravity
         for i in ph:
-            values[shift + 3 + i] = rho[i]  # why 3?
+            values[shift + 3 + i] = rho[i]
 
         # E4-> capillarity
-        for i in ph:
-            values[shift + 3 + nph + i] = pc[i]
+        #for i in ph:
+        #    values[shift + 3 + nph + i] = pc[i]
         # E5_> porosity
         values[shift + 3 + 2 * nph] = phi
 
-        # print(state, values)
+        print('well',state, values)
+        print(ph)
         # exit()
         return 0
 
@@ -297,13 +312,13 @@ class RateOperators(operator_set_evaluator_iface):
         for i in range(self.nph):
             values[i] = 0
 
-        (sat, x, rho, rho_m, mu, kr, pc, ph, zc) = self.property.evaluate(state)
+        (sat, x, rho, rho_m, mu, kr, pc, ph, zc, kinetic_rate) = self.property.evaluate(state)
 
 
         self.flux[:] = 0
         # step-1
         for j in ph:
-            for i in range(self.ne):                                                                                        # ne or nc?
+            for i in range(self.ne):
                 self.flux[i] += rho_m[j] * kr[j] * x[j][i] / mu[j]
         # step-2
         flux_sum = np.sum(self.flux)
@@ -364,7 +379,7 @@ class ReservoirThermalOperators(ReservoirOperators):
         shift = neq + neq * nph + nph
         for j in range(nph):
             # values[shift + nc * nph + j] = temperature
-            values[shift + neq * j + nc] = temperature * cond[j]
+            values[shift + neq * j + ne] = temperature * cond[j]
 
         """ Delta operator for reaction """
         shift += nph * neq
@@ -405,7 +420,7 @@ class DefaultPropertyEvaluator(operator_set_evaluator_iface):
         nph = self.property.nph
 
         #  some arrays will be reused in thermal
-        (self.sat, self.x, rho, self.rho_m, self.mu, self.kr, self.pc, self.ph) = self.property.evaluate(state)
+        (self.sat, self.x, rho, self.rho_m, self.mu, self.kr, self.pc, self.ph, zc, kinetic_rate) = self.property.evaluate(state)
 
         for i in range(nph):
             values[i] = self.sat[i]

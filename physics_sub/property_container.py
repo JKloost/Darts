@@ -119,16 +119,16 @@ class property_container:
         # Composition vector and pressure from state:
         vec_state_as_np = np.asarray(state)
         pressure = vec_state_as_np[0]
-        zc = np.append(vec_state_as_np[1:self.nc], 1 - np.sum(vec_state_as_np[1:self.nc]))
-        if zc[-1] < 0:
+        ze = np.append(vec_state_as_np[1:self.n_e], 1 - np.sum(vec_state_as_np[1:self.n_e]))
+        if ze[-1] < 0:
             # print(zc)
-            zc = self.comp_out_of_bounds(zc)
+            ze = self.comp_out_of_bounds(ze)
 
         self.clean_arrays()
         # two-phase flash - assume water phase is always present and water component last
 
-        density = self.run_density(pressure, zc)
-        ph, zc = self.run_flash(pressure, zc)
+        ph, zc, density = self.run_flash(pressure, ze)
+        # density = self.run_density(pressure, zc)
         # Density from this is still in kg/m3 - need to make option whether you want set numbers or from Reaktoro
 
         for j in ph:
@@ -136,10 +136,11 @@ class property_container:
             # molar weight of mixture
             for i in range(self.nc):
                 M += self.Mw[i] * self.x[j][i]
-            #self.dens[j] = self.density_ev[self.phases_name[j]].evaluate(pressure, self.x[j][0])  # output in [kg/m3]
+            # self.dens[j] = self.density_ev[self.phases_name[j]].evaluate(pressure, self.x[j][0])  # output in [kg/m3]
             self.dens = density
             self.dens_m[j] = self.dens[j] / M
             self.mu[j] = self.viscosity_ev[self.phases_name[j]].evaluate()  # output in [cp]
+            kinetic_rate = self.kinetic_rate_ev.evaluate(zc, 320, pressure)
 
         self.compute_saturation(ph)
 
@@ -147,7 +148,7 @@ class property_container:
             self.kr[j] = self.rel_perm_ev[self.phases_name[j]].evaluate(self.sat[j])
             self.pc[j] = 0
 
-        return self.sat, self.x, self.dens, self.dens_m, self.mu, self.kr, self.pc, ph, zc
+        return self.sat, self.x, self.dens, self.dens_m, self.mu, self.kr, self.pc, ph, zc, kinetic_rate
 
     def evaluate_thermal(self, state):
         """
@@ -169,7 +170,6 @@ class property_container:
         return self.enthalpy, fluid_cond, rock_energy
 
     def evaluate_at_cond(self, pressure, zc):
-
         self.sat[:] = 0
 
         if zc[-1] < 0:
