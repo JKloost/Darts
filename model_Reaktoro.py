@@ -78,18 +78,19 @@ class Model(DartsModel):
         self.physics = Compositional(self.property_container, self.timer, n_points=101, min_p=1, max_p=1000,
                                      min_z=self.zero/10, max_z=1-self.zero/10)
 
-        # zc_fl_init = [self.zero / (1 - solid_init), init_ions]
-        # zc_fl_init = zc_fl_init + [1 - sum(zc_fl_init)]
-        # self.ini_stream = [x * (1 - solid_init) for x in zc_fl_init]
-        # zc_fl_inj_stream_gas = [1 - 2 * self.zero / (1 - solid_inject), self.zero / (1 - solid_inject)]
-        # zc_fl_inj_stream_gas = zc_fl_inj_stream_gas + [1 - sum(zc_fl_inj_stream_gas)]
-        # self.inj_stream = [x * (1 - solid_inject) for x in zc_fl_inj_stream_gas]
+        zc_fl_init = [self.zero / (1 - solid_init), init_ions]
+        zc_fl_init = zc_fl_init + [1 - sum(zc_fl_init)]
+        self.ini_stream = [x * (1 - solid_init) for x in zc_fl_init]
+        zc_fl_inj_stream_gas = [1 - 2 * self.zero / (1 - solid_inject), self.zero / (1 - solid_inject)]
+        zc_fl_inj_stream_gas = zc_fl_inj_stream_gas + [1 - sum(zc_fl_inj_stream_gas)]
+        self.inj_stream = [x * (1 - solid_inject) for x in zc_fl_inj_stream_gas]
 
         # self.inj_stream = [self.zero, 0.99, self.zero, self.zero, self.zero]
-        #self.inj_stream = [0.99, self.zero, self.zero, self.zero, self.zero]
-        #self.inj_stream = [0.05, 0.95, self.zero, self.zero, self.zero]
-        self.ini_stream = [0.9, self.zero, 0.05, 0.05]
-        self.inj_stream = [self.zero, 0.99, self.zero, self.zero]
+        self.inj_stream = [0.99, self.zero, self.zero, self.zero]
+        self.ini_stream = [0.05, 0.95, self.zero, self.zero]
+        # self.ini_stream = [0.9, self.zero, 0.05, 0.05]
+        # self.inj_stream = [self.zero, 0.99, self.zero, self.zero]
+
         # self.ini_stream = [0.75, 0.15, 0.05, 0.05]
         # self.inj_stream = self.ini_stream
 
@@ -122,7 +123,7 @@ class Model(DartsModel):
         for i, w in enumerate(self.reservoir.wells):
             if i == 0:
                 w.control = self.physics.new_rate_inj(0.2, self.inj_stream, 0)
-                #w.control = self.physics.new_bhp_inj(150, self.inj_stream)
+                # w.control = self.physics.new_bhp_inj(150, self.inj_stream)
             else:
                 w.control = self.physics.new_bhp_prod(50)
 
@@ -276,24 +277,83 @@ class model_properties(property_container):
         super().__init__(phases_name, components_name, elements_name, Mw, min_z=min_z, diff_coef=diff_coef,
                          rock_comp=rock_comp, solid_dens=solid_dens)
 
-    def run_density(self, pressure, ze):
-        nu, x, zc, density = Flash_Reaktoro(ze, 320, pressure*100000, self.elements_name, self.min_z)
+    def comp_extension(self, z, min_z):
+        sum_z = 0
+        z_correct = False
+        C = len(z)
+        for c in range(C):
+            new_z = z[c]
+            if new_z <= min_z:
+                new_z = 0
+                z_correct = True
+            elif new_z >= 1 - min_z:
+                new_z = 1
+                z_correct = True
+            sum_z += new_z
+        new_z = 1 - sum_z
+        if new_z <= min_z:
+            new_z = 0
+            z_correct = True
+        sum_z += new_z
+        if z_correct:
+            for c in range(C):
+                new_z = z[c]
+                if new_z <= min_z:
+                    new_z = 0
+                elif new_z >= 1 - min_z:
+                    new_z = 1
+                new_z = new_z / sum_z  # Rescale
+                z[c] = new_z
+        return z
+
+    def comp_correction(self, z, min_z):
+        sum_z = 0
+        z_correct = False
+        C = len(z)
+        for c in range(C):
+            new_z = z[c]
+            if new_z < min_z:
+                new_z = min_z
+                z_correct = True
+            elif new_z > 1 - min_z:
+                new_z = 1 - min_z
+                z_correct = True
+            sum_z += new_z  # sum previous z of the loop
+        new_z = 1 - sum_z  # Get z_final
+        if new_z < min_z:
+            new_z = min_z
+            z_correct = True
+        sum_z += new_z  # Total sum of all z's
+        if z_correct:  # if correction is needed
+            for c in range(C):
+                new_z = z[c]
+                new_z = max(min_z, new_z)
+                new_z = min(1 - min_z, new_z)  # Check whether z is in between min_z and 1-min_z
+                new_z = new_z / sum_z  # Rescale
+                z[c] = new_z
+        return z
+
+    def run_density(self, pressure, zc):
+        nu, x, zc, density = Flash_Reaktoro(zc, 320, pressure*100000, self.components_name, self.min_z)
+        for i in range(len(density)):
+            if density[i]<0:
+                print('######################NEGATIVE AQUEOUS VOLUME WARNING##########################################')
         return density
 
         # introduce temperature
 
     def run_flash(self, pressure, ze):  # Change this to include 3 phases
         # Make every value that is the min_z equal to 0, as Reaktoro can work with 0, but not transport
-        # normalise = False
-        # for i in range(len(ze)):
-        #     if ze[i] <= self.min_z:
-        #         ze[i] = 0
-        #         normalise = True
-        # if normalise:
-        #     ze = [float(i) / sum(ze) for i in ze]
-        # print('ze after norm', ze)
+        print('ze in',ze)
+        ze = model_properties.comp_extension(self, ze, self.min_z)
+        print('ze extension', ze)
+
         self.nu, self.x, zc, density = Flash_Reaktoro(ze, 320, pressure*100000, self.elements_name, self.min_z)
-        # z_c Output of reaktoro has no values less than z_c and has been renormalised
+
+        print('zc out', zc)
+        zc = model_properties.comp_correction(self, zc, self.min_z)
+        print('zc corr', zc)
+
         '''
         Reaktoro input z_e, will output the components. Input also is the temp in K and pressure in Pa
         Output is the phase fractions (L,V,S, gotten from volume occupied), liq and vapor fraction (x,y)
@@ -302,30 +362,26 @@ class model_properties(property_container):
         ph gives the phases that are inside the cell 0 - gas, 1 - liquid, 2- solid
         Check whether there is a solid phase first, then for other phases
         '''
-        # check with self.zero instead 0
-        # Check if S<minimum, otherwise, set it to minimum value
-        # Solid phase always present
-
+        # Solid phase always needs to be present
         ph = list(range(len(self.nu)))  # ph = range(number of total phases)
+
+        if self.nu[0] < self.min_z:     # if vapor phase is less than min_z, it does not exist
+            del ph[0]                   # remove entry of vap
+            # self.nu[0] = 0
+            # self.x[0] = np.zeros(len(zc))
+            # self.nu = [float(i) / sum(self.nu) for i in self.nu]
+
+        elif self.nu[1] < self.min_z:   # if liq phase is less than min_z, it does not exist
+            del ph[1]
+            # self.nu[1] = 0
+            # self.x[1] = np.zeros(len(zc))
+            # self.nu = [float(i) / sum(self.nu) for i in self.nu]
 
         for i in range(len(self.nu)):
             if i > 1 and self.nu[i] < self.min_z:
                 self.nu[i] = self.min_z
-                self.nu = [float(i) / sum(self.nu) for i in self.nu]
 
-        if self.nu[0] < self.min_z:     # if vapor phase is less than min_z, it does not exist
-            del ph[0]                   # remove entry of vap
-            self.nu[0] = 0
-            # self.x[0] = np.zeros(len(zc))
-            self.nu = [float(i) / sum(self.nu) for i in self.nu]
-
-        elif self.nu[1] < self.min_z:   # if liq phase is less than min_z, it does not exist
-            del ph[1]
-            self.nu[1] = 0
-            # self.x[1] = np.zeros(len(zc))
-            self.nu = [float(i) / sum(self.nu) for i in self.nu]
-        # exit()
-        return ph, zc
+        return ph, zc, density
 
 
 def Flash_Reaktoro(z_e, T, P, elem, min_z):
@@ -406,23 +462,20 @@ class Reaktoro():
         mol_total = np.zeros(n_states)
         z_c, x, y, x_calcite, density = [], [], [], [], []
         for i in range(n_states):
-            if volume_aq[i] < 0:
-                print('######################NEGATIVE AQUEOUS VOLUME WARNING##########################################')
+            # if volume_aq[i] < 0:
+            #     print('######################NEGATIVE AQUEOUS VOLUME WARNING##########################################')
             mol_total[i] = mol_total_aq[i] + mol_total_gas[i] + mol_total_solid[i]
             zc = [(H2O[i]+H2O_gas[i])/mol_total[i], (CO2[i]+CO2_gas[i])/mol_total[i], Ca[i]/mol_total[i], CO3[i]/mol_total[i], (CaCO3[i]+Calcite[i])/mol_total[i]]
-            # norm = False
-            # for q in range(len(zc)):
-            #     if zc[q] < min_z:
-            #         zc[q] = min_z
-            #         norm = True
-            # if norm:
-            #     zc = [float(q) / sum(zc) for q in zc]
+            # zc = model_properties.comp_extension(self,zc,min_z)
+
             S_w[i] = volume_aq[i] / volume_tot[i]
             S_g[i] = volume_gas[i] / volume_tot[i]
             S_s[i] = volume_solid[i] / volume_tot[i]  # * density_solid = solid mass
+
             L[i] = (density_aq[i] * S_w[i]) / (density_gas[i] * S_g[i] + density_aq[i] * S_w[i] + density_solid[i] * S_s[i])
             V[i] = (density_gas[i] * S_g[i]) / (density_gas[i] * S_g[i] + density_aq[i] * S_w[i] + density_solid[i] * S_s[i])
             S[i] = (density_solid[i] * S_s[i]) / (density_gas[i] * S_g[i] + density_aq[i] * S_w[i] + density_solid[i] * S_s[i])
+
             x = np.append(x, [H2O[i]/mol_total_aq[i], CO2[i]/mol_total_aq[i], Ca[i]/mol_total_aq[i], CO3[i]/mol_total_aq[i], CaCO3[i]/mol_total_aq[i]])
             y = np.append(y, [H2O_gas[i]/mol_total_gas[i], CO2_gas[i]/mol_total_gas[i], 0, 0, 0])
             x_calcite = np.append(x_calcite, [0, 0, 0, 0, 1])
@@ -430,6 +483,7 @@ class Reaktoro():
             density = np.append(density, [density_gas, density_aq, density_solid])
         nu = [V, L, S]
         x = [y, x, x_calcite]
+        # z_c = model_properties.comp_correction(self, z_c, min_z)
         return nu, x, z_c, density
 
 
