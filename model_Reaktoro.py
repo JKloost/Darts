@@ -86,10 +86,11 @@ class Model(DartsModel):
         self.inj_stream = [x * (1 - solid_inject) for x in zc_fl_inj_stream_gas]
 
         # self.inj_stream = [self.zero, 0.99, self.zero, self.zero, self.zero]
-        self.inj_stream = [0.99, self.zero, self.zero, self.zero]
-        self.ini_stream = [0.05, 0.95, self.zero, self.zero]
-        # self.ini_stream = [0.9, self.zero, 0.05, 0.05]
-        # self.inj_stream = [self.zero, 0.99, self.zero, self.zero]
+        # self.inj_stream = [0.99, self.zero, self.zero, self.zero]
+        # self.ini_stream = [0.05, 0.95, self.zero, self.zero]
+
+        self.ini_stream = [0.9, self.zero, 0.05, 0.05]
+        self.inj_stream = [self.zero, 0.99, self.zero, self.zero]
 
         # self.ini_stream = [0.75, 0.15, 0.05, 0.05]
         # self.inj_stream = self.ini_stream
@@ -456,7 +457,8 @@ class Reaktoro():
             density_solid[i] = mass_solid[i]/volume_solid[i]
         mol_total_solid = [ChemicalQuantity(state).value("phaseAmount(Calcite)") for state in self.states]  # mol
         Calcite = [state.speciesAmount("Calcite") for state in self.states]
-
+        print('h2o', H2O)
+        print('h20(g)', H2O_gas)
         S_w, S_g, S_s = np.zeros(n_states), np.zeros(n_states), np.zeros(n_states)
         L, V, S = np.zeros(n_states), np.zeros(n_states), np.zeros(n_states)
         mol_total = np.zeros(n_states)
@@ -481,6 +483,9 @@ class Reaktoro():
             x_calcite = np.append(x_calcite, [0, 0, 0, 0, 1])
             z_c = np.append(z_c, zc)
             density = np.append(density, [density_gas, density_aq, density_solid])
+        if density_aq < 0:
+            print('#################################################################################################')
+            print(self.states[i])
         nu = [V, L, S]
         x = [y, x, x_calcite]
         # z_c = model_properties.comp_correction(self, z_c, min_z)
