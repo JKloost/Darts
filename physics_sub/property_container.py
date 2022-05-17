@@ -140,7 +140,7 @@ class property_container:
             self.dens = density
             self.dens_m[j] = self.dens[j] / M
             self.mu[j] = self.viscosity_ev[self.phases_name[j]].evaluate()  # output in [cp]
-            kinetic_rate = self.kinetic_rate_ev.evaluate(zc, 320, pressure)
+        kinetic_rate = self.kinetic_rate_ev.evaluate(zc, 320, pressure)
 
         self.compute_saturation(ph)
 

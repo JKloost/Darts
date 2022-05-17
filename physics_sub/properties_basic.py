@@ -212,5 +212,6 @@ class kinetic_basic():
         self.kinetic_rate = ReactionSystem(editor).rates(properties).val
         if np.isnan(self.kinetic_rate):
             self.kinetic_rate = 0
-            print('###################################kinetic rate is nan#############################################')
+        else:
+            print('kinetic_rate', self.kinetic_rate)
         return [0, 0, -self.kinetic_rate, -self.kinetic_rate]

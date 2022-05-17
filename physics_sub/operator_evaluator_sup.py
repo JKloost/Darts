@@ -228,7 +228,7 @@ class WellOperators(operator_set_evaluator_iface):
         if self.property.kinetic_rate_ev:
             # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self.x, zc)
             # kinetic_rate = self.property.kinetic_reaktoro.evaluate(
-            kinetic_rate = [0,0,0,0]
+            # kinetic_rate = [0,0,0,0]
             for i in range(neq):
                 values[shift + i] = kinetic_rate[i]
 
