@@ -76,7 +76,7 @@ class property_container:
         for a in self.phase_props:
             a[:] = 0
         for j in range(self.nph):
-            self.x[j][:] = 0
+            self.x[j][:] = (0,)
 
     def compute_saturation(self, ph):
         if len(ph) == 1:
@@ -140,7 +140,7 @@ class property_container:
             self.dens = density
             self.dens_m[j] = self.dens[j] / M
             self.mu[j] = self.viscosity_ev[self.phases_name[j]].evaluate()  # output in [cp]
-        kinetic_rate = self.kinetic_rate_ev.evaluate(zc, 320, pressure)
+        kinetic_rate = [0, 0, -1e-20, -1e-20, 1e-20]
 
         self.compute_saturation(ph)
 

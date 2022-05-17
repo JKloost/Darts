@@ -133,7 +133,7 @@ class ReservoirOperators(operator_set_evaluator_iface):
         # E5_> porosity
         values[shift + 3 + 2 * nph] = phi
 
-        print('reservoir',state, values)
+        print('reservoir', state, values)
         # exit()
         return 0
 
@@ -246,7 +246,7 @@ class WellOperators(operator_set_evaluator_iface):
         values[shift + 3 + 2 * nph] = phi
 
         print('well',state, values)
-        print(ph)
+        # print(ph)
         # exit()
         return 0
 

@@ -168,50 +168,50 @@ class PhaseRelPerm:
 #             self.kinetic_rate[-1] = - self.kinetic_rate[1]
 #         return self.kinetic_rate
 
-class kinetic_basic():
-    def __init__(self, equi_prod, kin_rate_cte, ne, combined_ions=True):
-        self.kinetic_rate = np.zeros(ne)
-
-    def evaluate(self, z_c, T, P):
-        editor = ChemicalEditor(Database('supcrt98.xml'))              # Database that Reaktoro uses
-        editor.addAqueousPhase("H2O(l) CO2(aq) Ca++ CO3-- CaCO3(aq)")  # Aqueous phase with elem
-        editor.addGaseousPhase('H2O(g) CO2(g)')
-        editor.addMineralPhase('Calcite')
-
-        editor.addMineralReaction("Calcite") \
-            .setEquation("Ca++ + CO3-- = Calcite") \
-            .addMechanism("logk = -5.81 mol/(m2*s); Ea = 23.5 kJ/mol") \
-            .setSpecificSurfaceArea(10, "cm2/g")
-
-        system = ChemicalSystem(editor)        # Set the system
-        reactions = ReactionSystem(editor)     # Set reaction system for kinetics
-
-        kinetic_solver = KineticSolver(reactions)
-
-        partition = Partition(system)  # Partition the system into equilibrium and kinetic reactions
-        partition.setKineticSpecies(["Calcite"])  # Set which species needs to be defined kinetically
-        kinetic_solver.setPartition(partition)
-
-        problem = EquilibriumProblem(system)
-        problem.setPartition(partition)
-
-        problem.setTemperature(T, 'kelvin')
-        problem.setPressure(P, 'pascal')
-
-        # Add the components to the problem
-        problem.add('H2O', z_c[0], 'mol')
-        problem.add('CO2', z_c[1], 'mol')
-        problem.add('Ca++', z_c[2], 'mol')
-        problem.add('CO3--', z_c[3], 'mol')
-        problem.add('Calcite', z_c[4], 'mol')
-
-        state = ChemicalState(system)
-        state.scaleVolume(1.0, "m3")
-
-        properties = state.properties()
-        self.kinetic_rate = ReactionSystem(editor).rates(properties).val
-        if np.isnan(self.kinetic_rate):
-            self.kinetic_rate = 0
-        else:
-            print('kinetic_rate', self.kinetic_rate)
-        return [0, 0, -self.kinetic_rate, -self.kinetic_rate]
+# class kinetic_basic():
+#     def __init__(self, equi_prod, kin_rate_cte, ne, combined_ions=True):
+#         self.kinetic_rate = np.zeros(ne)
+#
+#     def evaluate(self, z_c, T, P):
+#         editor = ChemicalEditor(Database('supcrt98.xml'))              # Database that Reaktoro uses
+#         editor.addAqueousPhase("H2O(l) CO2(aq) Ca++ CO3-- CaCO3(aq)")  # Aqueous phase with elem
+#         editor.addGaseousPhase('H2O(g) CO2(g)')
+#         editor.addMineralPhase('Calcite')
+#
+#         editor.addMineralReaction("Calcite") \
+#             .setEquation("Ca++ + CO3-- = Calcite") \
+#             .addMechanism("logk = -5.81 mol/(m2*s); Ea = 23.5 kJ/mol") \
+#             .setSpecificSurfaceArea(10, "cm2/g")
+#
+#         system = ChemicalSystem(editor)        # Set the system
+#         reactions = ReactionSystem(editor)     # Set reaction system for kinetics
+#
+#         kinetic_solver = KineticSolver(reactions)
+#
+#         partition = Partition(system)  # Partition the system into equilibrium and kinetic reactions
+#         partition.setKineticSpecies(["Calcite"])  # Set which species needs to be defined kinetically
+#         kinetic_solver.setPartition(partition)
+#
+#         problem = EquilibriumProblem(system)
+#         problem.setPartition(partition)
+#
+#         problem.setTemperature(T, 'kelvin')
+#         problem.setPressure(P, 'pascal')
+#
+#         # Add the components to the problem
+#         problem.add('H2O', z_c[0], 'mol')
+#         problem.add('CO2', z_c[1], 'mol')
+#         problem.add('Ca++', z_c[2], 'mol')
+#         problem.add('CO3--', z_c[3], 'mol')
+#         problem.add('Calcite', z_c[4], 'mol')
+#
+#         state = ChemicalState(system)
+#         state.scaleVolume(1.0, "m3")
+#
+#         properties = state.properties()
+#         self.kinetic_rate = ReactionSystem(editor).rates(properties).val
+#         if np.isnan(self.kinetic_rate):
+#             self.kinetic_rate = 0
+#         else:
+#             print('kinetic_rate', self.kinetic_rate)
+#         return [0, 0, -self.kinetic_rate, -self.kinetic_rate]
