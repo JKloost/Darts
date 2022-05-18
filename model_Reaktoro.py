@@ -43,13 +43,14 @@ class Model(DartsModel):
 
         """Physical properties"""
         # Create property containers:
-        components_name = ['H2O', 'CO2', 'Ca++', 'CO3--', 'CaCO3']
-        elements_name = ['H2O', 'CO2', 'Ca++', 'CO3--']
+        components_name = ['H2O', 'CO2', 'Ca++', 'SO4--', 'CaSO4(s)']
+        elements_name = ['H2O', 'CO2', 'Ca++', 'SO4--']
         aq_phase = ['H2O(l)', 'CO2(aq)', 'Ca++', 'CO3--', 'CaCO3(aq)']
         gas_phase = ['H2O(g)', 'CO2(g)']
         mineral_phase = ['Calcite']
         self.thermal = 0
-        Mw = [18.015, 44.01, 40.078, 60.008, 100.086]
+        #Mw = [18.015, 44.01, 40.078, 60.008, 100.086]
+        Mw = [18.015, 44.01, 40.078, 96.06, 136.14]
         self.property_container = model_properties(phases_name=['gas', 'wat', 'sol'],
                                                    components_name=components_name, elements_name=elements_name,
                                                    diff_coef=1e-9, rock_comp=1e-7,
@@ -443,21 +444,31 @@ class Reaktoro():
         CO3 = self.cp.speciesAmount('SO4-2')
         Calcite = self.cp.speciesAmount('Anhydrite')
         total_mol = H2O+CO2+Ca+CO3+Calcite
+        total_mol_aq = H2O_aq + CO2_aq + Ca + CO3
 
         mol_frac_gas = gas_props.speciesMoleFractions()
-        mol_frac_aq = liq_props.speciesMoleFractions()
+        # mol_frac_aq = liq_props.speciesMoleFractions()
         mol_frac_sol = sol_props.speciesMoleFractions()
         mol_frac_gas = [float(mol_frac_gas[0]), float(mol_frac_gas[1]), 0, 0, 0]
-        mol_frac_aq = [float(mol_frac_aq[0]), float(mol_frac_aq[1]), float(mol_frac_aq[2]), float(mol_frac_aq[3]), 0]
+        mol_frac_aq = [float(H2O_aq/total_mol_aq), float(CO2_aq/total_mol_aq),
+                       float(Ca/total_mol_aq), float(CO3/total_mol_aq), 0]
         mol_frac_sol = [0, 0, 0, 0, float(mol_frac_sol[0])]
 
-        volume_tot = self.cp.volume()
+        # V_tot = total_mol * sum(molar_frac*partial mole volume)
+
         volume_gas = gas_props.volume()
-        volume_aq = liq_props.volume()
+        # volume_aq = liq_props.volume()
+        partial_mol_vol_aq = np.zeros(len(mol_frac_aq))
+        for i in range(len(mol_frac_aq)):
+            partial_mol_vol_aq[i] = float(liq_props.speciesStandardVolumes()[i])
+        volume_aq = total_mol_aq * np.sum(np.multiply(mol_frac_aq, partial_mol_vol_aq))
         volume_solid = sol_props.volume()
+        volume_tot = volume_aq+volume_gas+volume_solid
 
         density_gas = gas_props.density()
-        density_aq = liq_props.density()
+        # density_aq = liq_props.density()
+        mass_aq = liq_props.mass()-self.cp.speciesMass('Na+')-self.cp.speciesMass('Cl-')
+        density_aq = mass_aq/volume_aq
         density_solid = sol_props.density()
 
         S_w = volume_aq / volume_tot
