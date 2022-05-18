@@ -10,7 +10,7 @@ P = 1e7  # Pa
 # T = 273+25
 # P = 1e5
 
-label = 'CO3-2'  # Change line 94, third item is looped, rest is in the system but set to 0
+label = 'Ca+2'  # Change line 94, third item is looped, rest is in the system but set to 0
 output = 'density_aq'  # Can be phase or density_aq
 
 def tersurf(a, b, c, d, line = None, inf_p = None):
@@ -72,7 +72,7 @@ def tersurf(a, b, c, d, line = None, inf_p = None):
 df = pd.DataFrame(columns=['H2O', 'CO2', label, 'phase', 'density_aq'])
 dict_merge = dict()
 
-nop = 75
+nop = 20
 for j in range(nop):
     print(j)
     for q in range(nop):
@@ -89,7 +89,7 @@ for j in range(nop):
 
         db = SupcrtDatabase("supcrtbl")
         gas = GaseousPhase("H2O(g) CO2(g)")
-        aq = AqueousPhase('H2O(aq) CO2(aq) '+str(label)+' Ca+2 Na+ Cl-')
+        aq = AqueousPhase('H2O(aq) CO2(aq) '+str(label)+' CO3-2 Na+ Cl-')
         # sol = MineralPhase('Calcite')
         # sol2 = MineralPhase('Anhydrite')
 
@@ -104,19 +104,32 @@ for j in range(nop):
         specs = EquilibriumSpecs(system)
         specs.temperature()
         specs.pressure()
+
         # These lines are the same as charge in PHREEQC, you set open the solution to add more Na+ if the charge isnt 0
-        # specs.charge()
-        # specs.openTo("Na+")
+
+        specs.charge()
+        specs.openTo("Na+ Cl-")
 
         conditions = EquilibriumConditions(specs)
         conditions.temperature(state.temperature())
         conditions.pressure(state.pressure())
-        # conditions.charge(0)  # sets the state to charge using openTo
+        conditions.charge(0)  # sets the state to charge using openTo
 
         solver = EquilibriumSolver(specs)
         solver.solve(state, conditions)
 
         cq = ChemicalProps(state)
+        H2O_aq = cq.speciesAmount('H2O(aq)')
+        H2O_g = cq.speciesAmount('H2O(g)')
+        H2O = H2O_aq + H2O_g
+        CO2_aq = cq.speciesAmount('CO2(aq)')
+        CO2_g = cq.speciesAmount('CO2(g)')
+        CO2 = CO2_aq + CO2_g
+        label_amount = cq.speciesAmount(label)
+        other_ion = cq.speciesAmount('CO3-2')
+        total_mol = H2O+CO2+label_amount+other_ion
+        total_mol_aq = H2O_aq+CO2_aq+label_amount+other_ion
+
         gas_props: ChemicalPropsPhaseConstRef = cq.phaseProps(0)
         liq_props: ChemicalPropsPhaseConstRef = cq.phaseProps(1)
 
@@ -126,9 +139,25 @@ for j in range(nop):
 
         volume_gas = gas_props.volume()
         volume_aq = liq_props.volume()
+        print('og volume',volume_aq)
         density_gas = gas_props.density()
         density_aq = liq_props.density()
-        volume_tot = cq.volume()
+        print('og density', density_aq)
+
+        # openTo cancel transport and calculation of ions
+        partial_mol_vol_aq = np.zeros(4)
+        for i in range(4):
+            partial_mol_vol_aq[i] = float(liq_props.speciesStandardVolumes()[i])
+        mol_frac_aq = [float(H2O_aq/total_mol_aq), float(CO2_aq/total_mol_aq),
+                       float(label_amount/total_mol_aq), float(other_ion/total_mol_aq)]
+
+        volume_aq = total_mol_aq * np.sum(np.multiply(mol_frac_aq, partial_mol_vol_aq))
+        volume_tot = volume_aq+volume_gas
+        mass_aq = liq_props.mass() - cq.speciesMass('Na+') - cq.speciesMass('Cl-')
+        density_aq = mass_aq / volume_aq
+
+        print(volume_aq)
+        print(density_aq)
 
         S_w = volume_aq / volume_tot
         S_g = volume_gas / volume_tot
@@ -158,6 +187,7 @@ df["phase"] = df["phase"].astype(float)
 df["density_aq"] = df["density_aq"].astype(float)
 fig = px.scatter_ternary(df, a='H2O', b='CO2', c=label, color=output)
 fig.show()
+print(len(np.array(df["CO2"])))
 tersurf(np.array(df["CO2"], dtype=float), np.array(df[label], dtype=float), np.array(df["H2O"], dtype=float),
         np.array(df[output], dtype=float))
 
