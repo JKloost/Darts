@@ -43,11 +43,11 @@ class Model(DartsModel):
 
         """Physical properties"""
         # Create property containers:
-        components_name = ['H2O', 'CO2', 'Ca+2', 'SO4-2', 'Na+', 'Cl-', 'CaSO4(s)']
-        elements_name = ['H2O', 'CO2', 'Ca+2', 'SO4-2', 'Na+', 'Cl-']
+        components_name = ['H2O', 'CO2', 'Na+', 'Cl-', 'Halite']
+        elements_name = ['H2O', 'CO2', 'Na+', 'Cl-']
         self.thermal = 0
         # Mw = [18.015, 44.01, 40.078, 60.008, 100.086]
-        Mw = [18.015, 44.01, 40.078, 96.06, 22.99, 35.45, 136.14]
+        Mw = [18.015, 44.01, 22.99, 35.45, 58.44]
         self.property_container = model_properties(phases_name=['gas', 'wat', 'sol'],
                                                    components_name=components_name, elements_name=elements_name,
                                                    diff_coef=1e-9, rock_comp=1e-7,
@@ -87,14 +87,15 @@ class Model(DartsModel):
         # self.inj_stream = [0.99, self.zero, self.zero, self.zero]
         # self.ini_stream = [0.05, 0.95, self.zero, self.zero]
 
-        self.ini_stream = [0.9, self.zero, 0.05, 0.05,self.zero,self.zero]
-        self.inj_stream = [self.zero, 0.99, self.zero, self.zero,self.zero,self.zero]
-
+        self.ini_stream = [0.9-2*self.zero, self.zero, 0.05, 0.05]
+        # self.inj_stream = [self.zero, 0.99, self.zero, self.zero]
+        # self.ini_stream = [0.1,0.2,0.3,0.3]
+        self.inj_stream = self.ini_stream
         # self.ini_stream = [0.75, 0.15, 0.05, 0.05]
         # self.inj_stream = self.ini_stream
 
         # Some newton parameters for non-linear solution:
-        self.params.first_ts = 0.001
+        self.params.first_ts = 1e-6
         self.params.max_ts = 1
         self.params.mult_ts = 2
 
@@ -121,10 +122,10 @@ class Model(DartsModel):
     def set_boundary_conditions(self):
         for i, w in enumerate(self.reservoir.wells):
             if i == 0:
-                w.control = self.physics.new_rate_inj(0.2, self.inj_stream, 0)
-                # w.control = self.physics.new_bhp_inj(150, self.inj_stream)
+                # w.control = self.physics.new_rate_inj(0.2, self.inj_stream, 0)
+                w.control = self.physics.new_bhp_inj(96, self.inj_stream)
             else:
-                w.control = self.physics.new_bhp_prod(50)
+                w.control = self.physics.new_bhp_prod(94)
 
     def set_op_list(self):
         self.op_num = np.array(self.reservoir.mesh.op_num, copy=False)
@@ -370,7 +371,7 @@ class model_properties(property_container):
             # self.x[0] = np.zeros(len(zc))
             self.nu = [float(i) / sum(self.nu) for i in self.nu]
 
-        elif self.nu[1] < self.min_z:   # if liq phase is less than min_z, it does not exist
+        elif self.nu[1] < 0.05:   # if liq phase is less than min_z, it does not exist
             del ph[1]
             density[1] = 0
             # self.nu[1] = 0
@@ -400,18 +401,18 @@ class Reaktoro():
     def __init__(self):
         db = SupcrtDatabase("supcrtbl")
         self.gas_comp = ["H2O(g)", "CO2(g)"]
-        self.aq_comp = ['H2O(aq)', 'CO2(aq)', 'Ca+2', 'SO4-2', 'Na+', 'Cl-']
-        self.sol_comp = ['Anhydrite']
+        self.aq_comp = ['H2O(aq)', 'CO2(aq)', 'Na+', 'Cl-']
+        self.sol_comp = ['Halite']
         gas = GaseousPhase(self.gas_comp)
         aq = AqueousPhase(self.aq_comp)
-        sol = MineralPhase('Anhydrite')
+        sol = MineralPhase(self.sol_comp[0])
         self.system = ChemicalSystem(db, gas, aq, sol)
         self.specs = EquilibriumSpecs(self.system)
         self.specs.temperature()
         self.specs.pressure()
         # self.specs.pH()
-        self.specs.charge()
-        self.specs.openTo("Na+ Cl-")
+        # self.specs.charge()
+        # self.specs.openTo("Na+ Cl-")
 
     def addingproblem(self, temp, pres, z_e, elem):
         state = ChemicalState(self.system)
@@ -419,14 +420,10 @@ class Reaktoro():
         state.pressure(pres, 'pascal')
         for i in range(len(self.aq_comp)):
             state.set(self.aq_comp[i], z_e[i], 'mol')
-        # state.set('H2O(aq)', z_e[0], 'mol')
-        # state.set('CO2(aq)', z_e[1], 'mol')
-        # state.set('Ca+2', z_e[2], 'mol')
-        # state.set('SO4-2', z_e[3], 'mol')
         conditions = EquilibriumConditions(self.specs)
         conditions.temperature(state.temperature())
         conditions.pressure(state.pressure())
-        conditions.charge(0)
+        # conditions.charge(0)
         solver = EquilibriumSolver(self.specs)
         solver.solve(state, conditions)
         self.cp = ChemicalProps(state)
@@ -452,11 +449,11 @@ class Reaktoro():
         CO2_aq = self.cp.speciesAmount('CO2(aq)')
         CO2_g = self.cp.speciesAmount('CO2(g)')
         CO2 = CO2_aq+CO2_g
-        Ca = self.cp.speciesAmount('Ca+2')
-        CO3 = self.cp.speciesAmount('SO4-2')
+        # Ca = self.cp.speciesAmount('Ca+2')
+        # CO3 = self.cp.speciesAmount('SO4-2')
         Na = self.cp.speciesAmount('Na+')
         Cl = self.cp.speciesAmount('Cl-')
-        Calcite = self.cp.speciesAmount('Anhydrite')
+        solid = self.cp.speciesAmount('Halite')
 
         total_mol = sum(mol_aq)+sum(mol_gas)+sum(mol_solid)
         total_mol_aq = sum(mol_aq)
@@ -464,10 +461,9 @@ class Reaktoro():
         mol_frac_gas = gas_props.speciesMoleFractions()
         mol_frac_aq = liq_props.speciesMoleFractions()
         mol_frac_sol = sol_props.speciesMoleFractions()
-        mol_frac_gas = [float(mol_frac_gas[0]), float(mol_frac_gas[1]), 0, 0, 0, 0, 0]
-        mol_frac_aq = [float(mol_frac_aq[0]), float(mol_frac_aq[1]), float(mol_frac_aq[2]), float(mol_frac_aq[3]),
-                       float(mol_frac_aq[4]), float(mol_frac_aq[5]), 0]
-        mol_frac_sol = [0, 0, 0, 0, 0, 0, float(mol_frac_sol[0])]
+        mol_frac_gas = [float(mol_frac_gas[0]), float(mol_frac_gas[1]), 0, 0, 0]
+        mol_frac_aq = [float(mol_frac_aq[0]), float(mol_frac_aq[1]), float(mol_frac_aq[2]), float(mol_frac_aq[3]), 0]
+        mol_frac_sol = [0, 0, 0, 0, float(mol_frac_sol[0])]
 
         # mol_frac_aq = [float(H2O_aq/total_mol_aq), float(CO2_aq/total_mol_aq),
         #                float(Ca/total_mol_aq), float(CO3/total_mol_aq), 0]
@@ -499,8 +495,8 @@ class Reaktoro():
         S = (density_solid * S_s) / (density_gas * S_g + density_aq * S_w + density_solid * S_s)
         nu = [float(V), float(L), float(S)]
         x = [mol_frac_gas, mol_frac_aq, mol_frac_sol]
-        z_c = [float(H2O / total_mol), float(CO2 / total_mol), float(Ca / total_mol), float(CO3 / total_mol),
-               float(Na/total_mol), float(Cl/total_mol), float(Calcite / total_mol)]
+        z_c = [float(H2O / total_mol), float(CO2 / total_mol),
+               float(Na/total_mol), float(Cl/total_mol), float(solid / total_mol)]
         density = [float(density_gas), float(density_aq), float(density_solid)]
         return nu, x, z_c, density
 

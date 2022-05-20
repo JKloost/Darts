@@ -139,25 +139,26 @@ for j in range(nop):
 
         volume_gas = gas_props.volume()
         volume_aq = liq_props.volume()
+        volume_tot = cq.volume()
         print('og volume',volume_aq)
         density_gas = gas_props.density()
         density_aq = liq_props.density()
         print('og density', density_aq)
 
         # openTo cancel transport and calculation of ions
-        partial_mol_vol_aq = np.zeros(4)
-        for i in range(4):
-            partial_mol_vol_aq[i] = float(liq_props.speciesStandardVolumes()[i])
-        mol_frac_aq = [float(H2O_aq/total_mol_aq), float(CO2_aq/total_mol_aq),
-                       float(label_amount/total_mol_aq), float(other_ion/total_mol_aq)]
-
-        volume_aq = total_mol_aq * np.sum(np.multiply(mol_frac_aq, partial_mol_vol_aq))
-        volume_tot = volume_aq+volume_gas
-        mass_aq = liq_props.mass() - cq.speciesMass('Na+') - cq.speciesMass('Cl-')
-        density_aq = mass_aq / volume_aq
-
-        print(volume_aq)
-        print(density_aq)
+        # partial_mol_vol_aq = np.zeros(4)
+        # for i in range(4):
+        #     partial_mol_vol_aq[i] = float(liq_props.speciesStandardVolumes()[i])
+        # mol_frac_aq = [float(H2O_aq/total_mol_aq), float(CO2_aq/total_mol_aq),
+        #                float(label_amount/total_mol_aq), float(other_ion/total_mol_aq)]
+        #
+        # volume_aq = total_mol_aq * np.sum(np.multiply(mol_frac_aq, partial_mol_vol_aq))
+        # volume_tot = volume_aq+volume_gas
+        # mass_aq = liq_props.mass() - cq.speciesMass('Na+') - cq.speciesMass('Cl-')
+        # density_aq = mass_aq / volume_aq
+        #
+        # print(volume_aq)
+        # print(density_aq)
 
         S_w = volume_aq / volume_tot
         S_g = volume_gas / volume_tot
@@ -174,8 +175,8 @@ for j in range(nop):
             density_aq = -1
         if density_aq > 10000:
             density_aq = 10001
-        df_concat = pd.DataFrame({'H2O': [float(liq_species[0]+gas_species[0])],
-                        'CO2': [float(liq_species[1]+gas_species[1])],
+        df_concat = pd.DataFrame({'H2O': [float(liq_species[0])],
+                        'CO2': [float(liq_species[1])],
                         label: [float(liq_species[2])],
                         'phase': [float(L)], 'density_aq': [float(density_aq)]})
         # print(state)

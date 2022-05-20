@@ -11,7 +11,7 @@ from matplotlib import cm
 import os
 #import cProfile
 
-redirect_darts_output('run.log')
+#redirect_darts_output('run.log')
 n = Model()
 n.init()
 
