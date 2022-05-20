@@ -120,6 +120,7 @@ class property_container:
         vec_state_as_np = np.asarray(state)
         pressure = vec_state_as_np[0]
         ze = np.append(vec_state_as_np[1:self.n_e], 1 - np.sum(vec_state_as_np[1:self.n_e]))
+
         if ze[-1] < 0:
             # print(zc)
             ze = self.comp_out_of_bounds(ze)

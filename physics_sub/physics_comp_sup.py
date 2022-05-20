@@ -46,7 +46,7 @@ class Compositional(PhysicsBase):
             self.n_axes_min = value_vector([min_p] + [min_z] * (self.ne-1))
             self.n_axes_max = value_vector([max_p] + [max_z] * (self.ne-1))
             self.acc_flux_etor = ReservoirOperators(property_container)
-            self.acc_flux_w_etor = WellOperators(property_container)
+            self.acc_flux_w_etor = ReservoirOperators(property_container)
             self.engine = eval("engine_super_%s%d_%d" % (platform, self.ne, self.nph))()
 
         self.rate_etor = RateOperators(property_container)

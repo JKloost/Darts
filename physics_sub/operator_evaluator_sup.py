@@ -55,6 +55,8 @@ class ReservoirOperators(operator_set_evaluator_iface):
         # if norm == True:
         #     zc = [float(q) / sum(zc) for q in zc]
         self.compr = (1 + self.property.rock_comp * (pressure - self.property.p_ref))  # compressible rock
+        vec_state_as_np = np.asarray(state)
+        ze = np.append(vec_state_as_np[1:ne], 1 - np.sum(vec_state_as_np[1:ne]))
 
         density_tot = np.sum(self.sat * self.rho_m)
         # zc = np.append(vec_state_as_np[1:nc], 1 - np.sum(vec_state_as_np[1:nc]))
@@ -66,10 +68,19 @@ class ReservoirOperators(operator_set_evaluator_iface):
         alpha = np.zeros(nc)
         beta = np.zeros(nc)
         chi = np.zeros(nph*nc)
-
+        # print(rho)
+        # print(self.sat)
+        # print(self.E_mat)
+        # print(self.x)
+        density_tot_e = np.zeros(nph)
+        for j in self.ph:
+            for i in range(ne):
+                density_tot_e[j] = density_tot*np.sum(np.multiply(self.E_mat[i], self.x[j][i]))
+        #print(density_tot_e)
+        #print(density_tot)
         for i in range(nc):
-            # values[i] = self.compr * density_tot * zc[i]
-            alpha[i] = self.compr * density_tot * zc[i]
+            # values[i] = self.compr * sum(density_tot_e) * ze[i]
+            alpha[i] = self.compr * zc[i] * density_tot
         for i in range(self.E_mat.shape[0]):
             values[i] = np.sum(np.multiply(self.E_mat[i], alpha[i]))
         # print('alpha', alpha)
@@ -133,7 +144,7 @@ class ReservoirOperators(operator_set_evaluator_iface):
         # E5_> porosity
         values[shift + 3 + 2 * nph] = phi
 
-        print('reservoir', state, values)
+        # print('reservoir', state, values)
         # exit()
         return 0
 
@@ -245,7 +256,7 @@ class WellOperators(operator_set_evaluator_iface):
         # E5_> porosity
         values[shift + 3 + 2 * nph] = phi
 
-        print('well',state, values)
+        # print('well',state, values)
         # print(ph)
         # exit()
         return 0
