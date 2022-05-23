@@ -78,11 +78,11 @@ class ReservoirOperators(operator_set_evaluator_iface):
                 density_tot_e[j] = density_tot*np.sum(np.multiply(self.E_mat[i], self.x[j][i]))
         #print(density_tot_e)
         #print(density_tot)
-        for i in range(nc):
-            # values[i] = self.compr * sum(density_tot_e) * ze[i]
-            alpha[i] = self.compr * zc[i] * density_tot
-        for i in range(self.E_mat.shape[0]):
-            values[i] = np.sum(np.multiply(self.E_mat[i], alpha[i]))
+        for i in range(ne):
+            values[i] = self.compr * sum(density_tot_e) * ze[i]
+            # alpha[i] = self.compr * zc[i] * density_tot
+        # for i in range(self.E_mat.shape[0]):
+        #     values[i] = np.sum(np.multiply(self.E_mat[i], alpha[i]))
         # print('alpha', alpha)
         """ and alpha for mineral components """
         # for i in range(nm):
