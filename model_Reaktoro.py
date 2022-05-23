@@ -1,6 +1,6 @@
 from darts.models.reservoirs.struct_reservoir import StructReservoir
 from darts.models.darts_model import DartsModel
-from darts.engines import sim_params, value_vector
+from darts.engines import sim_params, value_vector, conn_mesh, index_vector, ms_well_vector, op_vector
 import numpy as np
 from properties_basic import *
 from property_container import *
@@ -21,25 +21,48 @@ class Model(DartsModel):
         # Measure time spend on reading/initialization
         self.timer.node["initialization"].start()
 
+        mesh = conn_mesh()
+        nb = 10
+        block_m = np.arange(nb - 1, dtype='int32')
+        block_p = block_m + 1
+        permeability = 2
+        tranD = np.ones(nb - 1) * 0.1
+        tran = tranD * permeability
+        mesh.init(index_vector(block_m), index_vector(block_p),
+                  value_vector(tran), value_vector(tranD))
+        mesh.reverse_and_sort()
+        volume = np.array(mesh.volume, copy=False)
+        porosity = np.array(mesh.poro, copy=False)
+        depth = np.array(mesh.depth, copy=False)
+        volume.fill(300)
+        porosity.fill(1)
+        depth.fill(1000)
+        volume[0] = 1e10
+        volume[nb - 1] = 1e10
+        pressure = np.array(mesh.pressure, copy=False)
+        pressure.fill(200)
+        pressure[0] = 201
+        pressure[nb - 1] = 199
+
         self.zero = 1e-11
         init_ions = 0.5
         solid_init = 0.7
         equi_prod = (init_ions / 2) ** 2
         solid_inject = self.zero
         trans_exp = 3
-        perm = 100 #/ (1 - solid_init) ** trans_exp
-        """Reservoir"""
-        nx = 3
-        self.reservoir = StructReservoir(self.timer, nx=nx, ny=1, nz=1, dx=1, dy=1, dz=1, permx=perm, permy=perm,
-                                         permz=perm/10, poro=1, depth=1000)
-
-
-        """well location"""
-        self.reservoir.add_well("I1")
-        self.reservoir.add_perforation(well=self.reservoir.wells[-1], i=1, j=1, k=1, multi_segment=False)
-
-        self.reservoir.add_well("P1")
-        self.reservoir.add_perforation(well=self.reservoir.wells[-1], i=nx, j=1, k=1, multi_segment=False)
+        # perm = 100 #/ (1 - solid_init) ** trans_exp
+        # """Reservoir"""
+        # nx = 3
+        # self.reservoir = StructReservoir(self.timer, nx=nx, ny=1, nz=1, dx=1, dy=1, dz=1, permx=perm, permy=perm,
+        #                                permz=perm/10, poro=1, depth=1000)
+        #
+        #
+        # """well location"""
+        # self.reservoir.add_well("I1")
+        # self.reservoir.add_perforation(well=self.reservoir.wells[-1], i=1, j=1, k=1, multi_segment=False)
+        #
+        # self.reservoir.add_well("P1")
+        # self.reservoir.add_perforation(well=self.reservoir.wells[-1], i=nx, j=1, k=1, multi_segment=False)
 
         """Physical properties"""
         # Create property containers:
@@ -76,6 +99,7 @@ class Model(DartsModel):
         self.physics = Compositional(self.property_container, self.timer, n_points=101, min_p=1, max_p=1000,
                                      min_z=self.zero/10, max_z=1-self.zero/10)
 
+
         zc_fl_init = [self.zero / (1 - solid_init), init_ions]
         zc_fl_init = zc_fl_init + [1 - sum(zc_fl_init)]
         self.ini_stream = [x * (1 - solid_init) for x in zc_fl_init]
@@ -107,8 +131,13 @@ class Model(DartsModel):
         # self.params.newton_params[0] = 0.2
 
         self.runtime = 1
+        self.physics.engine.init(mesh, ms_well_vector(),
+                                 op_vector([self.physics.acc_flux_itor]),
+                                 self.params, self.timer.node["simulation"])
 
         self.timer.node["initialization"].stop()
+        self.physics.engine.run(10)
+        print(self.timer.print("", ""))
 
     # Initialize reservoir and set boundary conditions:
     def set_initial_conditions(self):
