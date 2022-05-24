@@ -11,11 +11,11 @@ from matplotlib import cm
 import os
 #import cProfile
 
-#redirect_darts_output('run.log')
+# redirect_darts_output('run.log')
 n = Model()
-n.init()
+#n.init()
 
-if 1:
+if 0:
     n.run_python(1, timestep_python=True)
     n.print_timers()
     n.print_stat()
@@ -25,13 +25,14 @@ if 1:
     writer = pd.ExcelWriter('time_data.xlsx')
     time_data.to_excel(writer, 'Sheet1')
     writer.save()
-    #n.print_and_plot('time_data.xlsx')
+    n.print_and_plot('time_data.xlsx')
 else:
     n.load_restart_data()
     time_data = pd.read_pickle("darts_time_data.pkl")
 
 """ plot results 2D """
 Xn = np.array(n.physics.engine.X, copy=False)
+print(Xn)
 nc = n.property_container.nc + n.thermal
 saturation = n.property_container.sat
 P = Xn[0:n.reservoir.nb*nc:nc]
