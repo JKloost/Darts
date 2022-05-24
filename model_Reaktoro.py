@@ -100,23 +100,19 @@ class Model(DartsModel):
                                      min_z=self.zero/10, max_z=1-self.zero/10)
 
 
-        zc_fl_init = [self.zero / (1 - solid_init), init_ions]
-        zc_fl_init = zc_fl_init + [1 - sum(zc_fl_init)]
-        self.ini_stream = [x * (1 - solid_init) for x in zc_fl_init]
-        zc_fl_inj_stream_gas = [1 - 2 * self.zero / (1 - solid_inject), self.zero / (1 - solid_inject)]
-        zc_fl_inj_stream_gas = zc_fl_inj_stream_gas + [1 - sum(zc_fl_inj_stream_gas)]
-        self.inj_stream = [x * (1 - solid_inject) for x in zc_fl_inj_stream_gas]
+        # zc_fl_init = [self.zero / (1 - solid_init), init_ions]
+        # zc_fl_init = zc_fl_init + [1 - sum(zc_fl_init)]
+        # self.ini_stream = [x * (1 - solid_init) for x in zc_fl_init]
+        # zc_fl_inj_stream_gas = [1 - 2 * self.zero / (1 - solid_inject), self.zero / (1 - solid_inject)]
+        # zc_fl_inj_stream_gas = zc_fl_inj_stream_gas + [1 - sum(zc_fl_inj_stream_gas)]
+        # self.inj_stream = [x * (1 - solid_inject) for x in zc_fl_inj_stream_gas]
 
-        # self.inj_stream = [self.zero, 0.99, self.zero, self.zero, self.zero]
-        # self.inj_stream = [0.99, self.zero, self.zero, self.zero]
-        # self.ini_stream = [0.05, 0.95, self.zero, self.zero]
 
         self.ini_stream = [0.9-2*self.zero, self.zero, 0.05, 0.05]
-        # self.inj_stream = [self.zero, 0.99, self.zero, self.zero]
-        # self.ini_stream = [0.1,0.2,0.3,0.3]
-        self.inj_stream = self.ini_stream
-        # self.ini_stream = [0.75, 0.15, 0.05, 0.05]
+        self.inj_stream = [0.3, 0.3, 0.2, 0.2]
         # self.inj_stream = self.ini_stream
+        #composition = np.array(mesh.composition, copy=False)
+
 
         # Some newton parameters for non-linear solution:
         self.params.first_ts = 1e-6
@@ -129,11 +125,14 @@ class Model(DartsModel):
         self.params.max_i_linear = 50
         self.params.newton_type = sim_params.newton_local_chop
         # self.params.newton_params[0] = 0.2
+        self.physics.set_uniform_initial_conditions(mesh, 200, self.ini_stream)
+        self.physics.new_bhp_inj(199, self.inj_stream)
 
         self.runtime = 1
         self.physics.engine.init(mesh, ms_well_vector(),
                                  op_vector([self.physics.acc_flux_itor]),
                                  self.params, self.timer.node["simulation"])
+
 
         self.timer.node["initialization"].stop()
         self.physics.engine.run(10)
