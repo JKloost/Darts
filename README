@@ -1,2 +1,3 @@
 Reaktoro V2.0.0rc22       conda install reaktoro=2.0.0rc22
 Python 3.9                e.g. self.x[j][:] = (0,) instead of old self.x[j][:] = 0
+Change line 5 in main to correct folder
