@@ -15,29 +15,33 @@ import os
 n = Model()
 #n.init()
 
-if 0:
-    n.run_python(1, timestep_python=True)
-    n.print_timers()
-    n.print_stat()
-    time_data = pd.DataFrame.from_dict(n.physics.engine.time_data)
-    time_data.to_pickle("darts_time_data.pkl")
-    n.save_restart_data()
-    writer = pd.ExcelWriter('time_data.xlsx')
-    time_data.to_excel(writer, 'Sheet1')
-    writer.save()
-    n.print_and_plot('time_data.xlsx')
-else:
-    n.load_restart_data()
-    time_data = pd.read_pickle("darts_time_data.pkl")
+# if 0:
+#     n.run_python(1, timestep_python=True)
+#     n.print_timers()
+#     n.print_stat()
+#     time_data = pd.DataFrame.from_dict(n.physics.engine.time_data)
+#     time_data.to_pickle("darts_time_data.pkl")
+#     n.save_restart_data()
+#     writer = pd.ExcelWriter('time_data.xlsx')
+#     time_data.to_excel(writer, 'Sheet1')
+#     writer.save()
+#     n.print_and_plot('time_data.xlsx')
+# else:
+#     n.load_restart_data()
+#     time_data = pd.read_pickle("darts_time_data.pkl")
 
 """ plot results 2D """
 Xn = np.array(n.physics.engine.X, copy=False)
 print(Xn)
 nc = n.property_container.nc + n.thermal
 saturation = n.property_container.sat
-P = Xn[0:n.reservoir.nb*nc:nc]
-z1_darts = Xn[1:n.reservoir.nb*nc:nc]
-z2_darts = Xn[2:n.reservoir.nb*nc:nc]
+
+P = Xn[0::nc-1]
+z1_darts = Xn[1::nc-1]
+z2_darts = Xn[2::nc-1]
+# P = Xn[0:n.reservoir.nb*nc:nc]
+# z1_darts = Xn[1:n.reservoir.nb*nc:nc]
+# z2_darts = Xn[2:n.reservoir.nb*nc:nc]
 # z3_darts = Xn[3:n.reservoir.nb*nc:nc]
 # z4_darts = Xn[2:n.reservoir.nb*nc:nc]
 # z5_darts = np.zeros(len(z2_darts))

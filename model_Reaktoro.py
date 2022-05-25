@@ -22,7 +22,7 @@ class Model(DartsModel):
         self.timer.node["initialization"].start()
 
         mesh = conn_mesh()
-        nb = 10
+        nb = 100
         block_m = np.arange(nb - 1, dtype='int32')
         block_p = block_m + 1
         permeability = 2
@@ -137,6 +137,7 @@ class Model(DartsModel):
         self.timer.node["initialization"].stop()
         self.physics.engine.run(10)
         print(self.timer.print("", ""))
+        print(self.physics.engine.X)
 
     # Initialize reservoir and set boundary conditions:
     def set_initial_conditions(self):
