@@ -41,8 +41,8 @@ class Model(DartsModel):
         volume[nb - 1] = 1e10
         pressure = np.array(mesh.pressure, copy=False)
         pressure.fill(200)
-        pressure[0] = 201
-        pressure[nb - 1] = 199
+        pressure[0] = 220
+        pressure[nb - 1] = 180
 
         self.zero = 1e-11
         init_ions = 0.5
@@ -126,18 +126,20 @@ class Model(DartsModel):
         self.params.newton_type = sim_params.newton_local_chop
         # self.params.newton_params[0] = 0.2
         self.physics.set_uniform_initial_conditions(mesh, 200, self.ini_stream)
-        self.physics.new_bhp_inj(199, self.inj_stream)
+        self.physics.new_bhp_inj(200, self.inj_stream)
+        pressure.fill(200)
+        pressure[0] = 201
+        pressure[nb - 1] = 199
 
-        self.runtime = 1
+        self.runtime = 10
         self.physics.engine.init(mesh, ms_well_vector(),
                                  op_vector([self.physics.acc_flux_itor]),
                                  self.params, self.timer.node["simulation"])
 
 
         self.timer.node["initialization"].stop()
-        self.physics.engine.run(10)
+        self.physics.engine.run(100)
         print(self.timer.print("", ""))
-        print(self.physics.engine.X)
 
     # Initialize reservoir and set boundary conditions:
     def set_initial_conditions(self):
