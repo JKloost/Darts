@@ -13,7 +13,8 @@ import os
 
 # redirect_darts_output('run.log')
 n = Model()
-#n.init()
+# n.init()
+# n.run_python(1000, timestep_python=True)
 
 # if 0:
 #     n.run_python(1, timestep_python=True)
@@ -39,6 +40,10 @@ saturation = n.property_container.sat
 P = Xn[0::nc-1]
 z1_darts = Xn[1::nc-1]
 z2_darts = Xn[2::nc-1]
+z3_darts = Xn[3::nc-1]
+z4_darts = np.zeros(len(z1_darts))
+for i in range(len(z1_darts)):
+    z4_darts[i] = 1 - z1_darts[i]-z2_darts[i]-z3_darts[i]
 # P = Xn[0:n.reservoir.nb*nc:nc]
 # z1_darts = Xn[1:n.reservoir.nb*nc:nc]
 # z2_darts = Xn[2:n.reservoir.nb*nc:nc]
@@ -323,11 +328,12 @@ plt.show()
 plt.figure(2)
 plt.plot(z1_darts, label='H2O')
 plt.plot(z2_darts, label='CO2')
-# plt.plot(z3_darts,label='Ca++')
+plt.plot(z3_darts,label='Ca++')
+plt.plot(z4_darts,label='CO3--')
 # plt.plot(z4_darts,label='CO3--')
 # plt.plot(z4_darts,label='Calcite')
 plt.legend()
-plt.ylabel('z_c')
+plt.ylabel('z_e')
 plt.xlabel('x dimensionless')
 plt.title('Composition', y=1)
 #

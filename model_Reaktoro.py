@@ -34,15 +34,12 @@ class Model(DartsModel):
         volume = np.array(mesh.volume, copy=False)
         porosity = np.array(mesh.poro, copy=False)
         depth = np.array(mesh.depth, copy=False)
-        volume.fill(300)
+        volume.fill(100)
         porosity.fill(1)
         depth.fill(1000)
         volume[0] = 1e10
         volume[nb - 1] = 1e10
         pressure = np.array(mesh.pressure, copy=False)
-        pressure.fill(200)
-        pressure[0] = 220
-        pressure[nb - 1] = 180
 
         self.zero = 1e-11
         init_ions = 0.5
@@ -51,12 +48,11 @@ class Model(DartsModel):
         solid_inject = self.zero
         trans_exp = 3
         # perm = 100 #/ (1 - solid_init) ** trans_exp
-        # """Reservoir"""
-        # nx = 3
-        # self.reservoir = StructReservoir(self.timer, nx=nx, ny=1, nz=1, dx=1, dy=1, dz=1, permx=perm, permy=perm,
+        # # # """Reservoir"""
+        # nx = 50
+        # self.reservoir = StructReservoir(self.timer, nx=nx, ny=1, nz=1, dx=30, dy=10, dz=5, permx=perm, permy=perm,
         #                                permz=perm/10, poro=1, depth=1000)
-        #
-        #
+
         # """well location"""
         # self.reservoir.add_well("I1")
         # self.reservoir.add_perforation(well=self.reservoir.wells[-1], i=1, j=1, k=1, multi_segment=False)
@@ -66,11 +62,11 @@ class Model(DartsModel):
 
         """Physical properties"""
         # Create property containers:
-        components_name = ['H2O', 'CO2', 'Na+', 'Cl-', 'Halite']
-        elements_name = ['H2O', 'CO2', 'Na+', 'Cl-']
+        components_name = ['H2O', 'CO2', 'Ca+2', 'CO3-2', 'Calcite']
+        elements_name = ['H2O', 'CO2', 'Ca+2', 'CO3-2']
         self.thermal = 0
-        # Mw = [18.015, 44.01, 40.078, 60.008, 100.086]
-        Mw = [18.015, 44.01, 22.99, 35.45, 58.44]
+        Mw = [18.015, 44.01, 40.078, 60.008, 100.086]
+        # Mw = [18.015, 44.01, 22.99, 35.45, 58.44]
         self.property_container = model_properties(phases_name=['gas', 'wat', 'sol'],
                                                    components_name=components_name, elements_name=elements_name,
                                                    diff_coef=1e-9, rock_comp=1e-7,
@@ -107,9 +103,8 @@ class Model(DartsModel):
         # zc_fl_inj_stream_gas = zc_fl_inj_stream_gas + [1 - sum(zc_fl_inj_stream_gas)]
         # self.inj_stream = [x * (1 - solid_inject) for x in zc_fl_inj_stream_gas]
 
-
         self.ini_stream = [0.9-2*self.zero, self.zero, 0.05, 0.05]
-        self.inj_stream = [0.3, 0.3, 0.2, 0.2]
+        self.inj_stream = [self.zero, 1-4*self.zero, self.zero, self.zero]
         # self.inj_stream = self.ini_stream
         #composition = np.array(mesh.composition, copy=False)
 
@@ -126,25 +121,29 @@ class Model(DartsModel):
         self.params.newton_type = sim_params.newton_local_chop
         # self.params.newton_params[0] = 0.2
         self.physics.set_uniform_initial_conditions(mesh, 200, self.ini_stream)
-        self.physics.new_bhp_inj(200, self.inj_stream)
+        comp = np.array(mesh.composition, copy=False)
+        comp[0] = self.inj_stream[0]
+        comp[1] = self.inj_stream[1]
+        comp[2] = self.inj_stream[2]
+
+        #self.physics.new_bhp_inj(200, self.inj_stream)
+        pressure = np.array(mesh.pressure, copy=False)
         pressure.fill(200)
-        pressure[0] = 201
-        pressure[nb - 1] = 199
+        pressure[0] = 230
+        pressure[-1] = 170
 
-        self.runtime = 10
+        # self.runtime = 1000
         self.physics.engine.init(mesh, ms_well_vector(),
-                                 op_vector([self.physics.acc_flux_itor]),
-                                 self.params, self.timer.node["simulation"])
-
-
+                                op_vector([self.physics.acc_flux_itor]),
+                                self.params, self.timer.node["simulation"])
         self.timer.node["initialization"].stop()
-        self.physics.engine.run(100)
+        self.physics.engine.run(3000)
         print(self.timer.print("", ""))
 
     # Initialize reservoir and set boundary conditions:
     def set_initial_conditions(self):
         """ initialize conditions for all scenarios"""
-        self.physics.set_uniform_initial_conditions(self.reservoir.mesh, 95, self.ini_stream)
+        self.physics.set_uniform_initial_conditions(self.reservoir.mesh, 200, self.ini_stream)
 
         # composition = np.array(self.reservoir.mesh.composition, copy=False)
         # n_half = int(self.reservoir.nx * self.reservoir.ny * self.reservoir.nz / 2)
@@ -154,9 +153,9 @@ class Model(DartsModel):
         for i, w in enumerate(self.reservoir.wells):
             if i == 0:
                 # w.control = self.physics.new_rate_inj(0.2, self.inj_stream, 0)
-                w.control = self.physics.new_bhp_inj(96, self.inj_stream)
+                w.control = self.physics.new_bhp_inj(210, self.inj_stream)
             else:
-                w.control = self.physics.new_bhp_prod(94)
+                w.control = self.physics.new_bhp_prod(190)
 
     def set_op_list(self):
         self.op_num = np.array(self.reservoir.mesh.op_num, copy=False)
@@ -367,7 +366,7 @@ class model_properties(property_container):
     def run_density(self, pressure, zc):
         nu, x, zc, density = Flash_Reaktoro(zc, 320, pressure*100000, self.components_name, self.min_z)
         for i in range(len(density)):
-            if density[i]<0:
+            if density[i] < 0:
                 print('######################NEGATIVE AQUEOUS VOLUME WARNING##########################################')
         return density
 
@@ -413,10 +412,10 @@ class model_properties(property_container):
             if i > 1 and self.nu[i] < self.min_z:
                 self.nu[i] = self.min_z
         for i in range(len(self.nu)):
-            if density[i] < 0:
-                print('ze',ze)
-                print('zc',zc)
-                print('nu',self.nu)
+            if density[i] < 0 or density[1] > 1500:
+                print('ze', ze)
+                print('zc', zc)
+                print('nu', self.nu)
                 print(density)
         return ph, zc, density
 
@@ -432,8 +431,8 @@ class Reaktoro():
     def __init__(self):
         db = SupcrtDatabase("supcrtbl")
         self.gas_comp = ["H2O(g)", "CO2(g)"]
-        self.aq_comp = ['H2O(aq)', 'CO2(aq)', 'Na+', 'Cl-']
-        self.sol_comp = ['Halite']
+        self.aq_comp = ['H2O(aq)', 'CO2(aq)', 'Ca+2', 'CO3-2']
+        self.sol_comp = ['Calcite']
         gas = GaseousPhase(self.gas_comp)
         aq = AqueousPhase(self.aq_comp)
         sol = MineralPhase(self.sol_comp[0])
@@ -482,9 +481,9 @@ class Reaktoro():
         CO2 = CO2_aq+CO2_g
         # Ca = self.cp.speciesAmount('Ca+2')
         # CO3 = self.cp.speciesAmount('SO4-2')
-        Na = self.cp.speciesAmount('Na+')
-        Cl = self.cp.speciesAmount('Cl-')
-        solid = self.cp.speciesAmount('Halite')
+        Na = self.cp.speciesAmount('Ca+2')
+        Cl = self.cp.speciesAmount('CO3-2')
+        solid = self.cp.speciesAmount('Calcite')
 
         total_mol = sum(mol_aq)+sum(mol_gas)+sum(mol_solid)
         total_mol_aq = sum(mol_aq)
