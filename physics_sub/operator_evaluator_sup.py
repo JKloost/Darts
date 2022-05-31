@@ -58,7 +58,13 @@ class ReservoirOperators(operator_set_evaluator_iface):
         vec_state_as_np = np.asarray(state)
         ze = np.append(vec_state_as_np[1:ne], 1 - np.sum(vec_state_as_np[1:ne]))
 
+        # ze = np.zeros(self.E_mat.shape[0])
+        for i in range(self.E_mat.shape[0]):
+            ze[i] = np.divide(np.sum(np.multiply(self.E_mat[i], zc)), np.sum(np.multiply(self.E_mat, zc)))  # ze e_i z - Ez
         density_tot = np.sum(self.sat * self.rho_m)
+        density_tot_c = np.zeros(nph)
+        for i in range(nph):
+            density_tot_c[i] = self.sat[i]*self.rho_m[i]
         # zc = np.append(vec_state_as_np[1:nc], 1 - np.sum(vec_state_as_np[1:nc]))
         # zc = vec_state_as_np[1:]    # We receive the components from reaktoro
         phi = 1
@@ -68,21 +74,22 @@ class ReservoirOperators(operator_set_evaluator_iface):
         alpha = np.zeros(nc)
         beta = np.zeros(nc)
         chi = np.zeros(nph*nc)
-        # print(rho)
-        # print(self.sat)
-        # print(self.E_mat)
-        # print(self.x)
+
         density_tot_e = np.zeros(nph)
-        for j in self.ph:
+        for j in range(nph):
             for i in range(ne):
-                density_tot_e[j] = density_tot*np.sum(np.multiply(self.E_mat[i], self.x[j][i]))
-        #print(density_tot_e)
-        #print(density_tot)
-        for i in range(ne):
-            values[i] = self.compr * sum(density_tot_e) * ze[i]
-            # alpha[i] = self.compr * zc[i] * density_tot
-        # for i in range(self.E_mat.shape[0]):
-        #     values[i] = np.sum(np.multiply(self.E_mat[i], alpha[i]))
+                density_tot_e[j] = np.sum((self.sat[j] * self.rho_m[j]) * np.sum(np.multiply(self.E_mat, self.x[j])))
+        for i in range(nc):
+            alpha[i] = self.compr * zc[i] * density_tot
+        for i in range(self.E_mat.shape[0]):
+            values[i] = np.sum(np.multiply(self.E_mat[i], alpha[i]))
+        #     print(np.sum(np.multiply(self.E_mat[i], alpha[i])))
+        # for i in range(ne):
+        #     print('e',self.compr*ze[i]*sum(density_tot_e))
+        # print(zc)
+        # print(ze)
+        # print(sum(density_tot))
+        # exit()
         # print('alpha', alpha)
         """ and alpha for mineral components """
         # for i in range(nm):
@@ -105,7 +112,7 @@ class ReservoirOperators(operator_set_evaluator_iface):
         # print('gammashift',shift)
         for j in self.ph:
             gamma = self.compr * self.sat[j]
-            values[shift + j] = self.compr * self.sat[j]
+            values[shift + j] = self.compr * self.kr[j]
             # print('gamma', gamma)
 
         """ Chi operator for diffusion """

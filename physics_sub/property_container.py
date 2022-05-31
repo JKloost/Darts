@@ -127,7 +127,6 @@ class property_container:
 
         self.clean_arrays()
         # two-phase flash - assume water phase is always present and water component last
-
         ph, zc, density = self.run_flash(pressure, ze)
         # density = self.run_density(pressure, zc)
         # Density from this is still in kg/m3 - need to make option whether you want set numbers or from Reaktoro
