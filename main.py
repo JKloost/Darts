@@ -37,13 +37,15 @@ print(Xn)
 nc = n.property_container.nc + n.thermal
 saturation = n.property_container.sat
 
-P = Xn[0::nc-1]
-z1_darts = Xn[1::nc-1]
-z2_darts = Xn[2::nc-1]
-z3_darts = Xn[3::nc-1]
-z4_darts = np.zeros(len(z1_darts))
+P = Xn[0::nc-2]
+z1_darts = Xn[1::nc-2]
+z2_darts = Xn[2::nc-2]
+z3_darts = Xn[3::nc-2]
+z4_darts = Xn[4::nc-2]
+z5_darts = Xn[5::nc-2]
+z6_darts = np.zeros(len(z1_darts))
 for i in range(len(z1_darts)):
-    z4_darts[i] = 1 - z1_darts[i]-z2_darts[i]-z3_darts[i]
+    z6_darts[i] = 1 - z1_darts[i]-z2_darts[i]-z3_darts[i]-z4_darts[i]-z5_darts[i]
 # P = Xn[0:n.reservoir.nb*nc:nc]
 # z1_darts = Xn[1:n.reservoir.nb*nc:nc]
 # z2_darts = Xn[2:n.reservoir.nb*nc:nc]
@@ -330,6 +332,8 @@ plt.plot(z1_darts, label='H2O')
 plt.plot(z2_darts, label='CO2')
 plt.plot(z3_darts,label='Ca++')
 plt.plot(z4_darts,label='CO3--')
+plt.plot(z5_darts,label='Na+')
+plt.plot(z6_darts,label='Cl-')
 # plt.plot(z4_darts,label='CO3--')
 # plt.plot(z4_darts,label='Calcite')
 plt.legend()
