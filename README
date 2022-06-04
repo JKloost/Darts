@@ -2,3 +2,5 @@ Reaktoro V2.0.0rc22       conda install reaktoro=2.0.0rc22
 Python 3.9                e.g. self.x[j][:] = (0,) instead of old self.x[j][:] = 0
 Change line 5 in main to correct folder
 Line 131 in property container calls a second instance of reaktoro to evaluate the density in equilibrium
+
+System works for Na Cl injection and not yet for Ca CO3
