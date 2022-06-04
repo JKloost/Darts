@@ -24,6 +24,11 @@ class ReservoirOperators(operator_set_evaluator_iface):
               [0, 0, 0, 1, 0, 0, 1, 0],
               [0, 0, 0, 0, 1, 0, 0, 1],
               [0, 0, 0, 0, 0, 1, 0, 1]])
+        # self.E_mat = np.array([[1, 0, 0, 0, 0, 0, 0],      # elimination matrix, to transform comp to elem
+        #       [0, 1, 0, 0, 0, 0, 0],
+        #       [0, 0, 1, 0, 0, 1, 0],
+        #       [0, 0, 0, 1, 0, 0, 1],
+        #       [0, 0, 0, 0, 1, 0, 1]])
 
     def evaluate(self, state, values):
         """
@@ -61,8 +66,8 @@ class ReservoirOperators(operator_set_evaluator_iface):
         # if norm == True:
         #     zc = [float(q) / sum(zc) for q in zc]
         self.compr = (1 + self.property.rock_comp * (pressure - self.property.p_ref))  # compressible rock
-        #vec_state_as_np = np.asarray(state)
-        #ze = np.append(vec_state_as_np[1:ne], 1 - np.sum(vec_state_as_np[1:ne]))
+        vec_state_as_np = np.asarray(state)
+        ze = np.append(vec_state_as_np[1:ne], 1 - np.sum(vec_state_as_np[1:ne]))
 
         # ze = np.zeros(self.E_mat.shape[0])
         #for i in range(self.E_mat.shape[0]):
@@ -81,17 +86,17 @@ class ReservoirOperators(operator_set_evaluator_iface):
         beta = np.zeros(nc)
         chi = np.zeros(nph*nc)
 
-        # density_tot_e = np.zeros(nph)
-        # for j in range(nph):
-        #     for i in range(ne):
-        #         density_tot_e[j] = np.sum((self.sat[j] * self.rho_m[j]) * np.sum(np.multiply(self.E_mat, self.x[j])))
+        density_tot_e = np.zeros(nph)
+        for j in range(nph):
+            for i in range(ne):
+                density_tot_e[j] = np.sum((self.sat[j] * self.rho_m[j]) * np.sum(np.multiply(self.E_mat, self.x[j])))
         for i in range(nc):
             alpha[i] = self.compr * zc[i] * density_tot
         for i in range(self.E_mat.shape[0]):
             values[i] = np.sum(np.multiply(self.E_mat[i], alpha[i]))
         #     print(np.sum(np.multiply(self.E_mat[i], alpha[i])))
         # for i in range(ne):
-        #     print('e',self.compr*ze[i]*sum(density_tot_e))
+        #     values[i] = self.compr*ze[i]*sum(density_tot_e)
         # print(zc)
         # print(ze)
         # print(sum(density_tot))
