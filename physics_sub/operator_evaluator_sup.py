@@ -90,13 +90,13 @@ class ReservoirOperators(operator_set_evaluator_iface):
         for j in range(nph):
             for i in range(ne):
                 density_tot_e[j] = np.sum((self.sat[j] * self.rho_m[j]) * np.sum(np.multiply(self.E_mat, self.x[j])))
-        for i in range(nc):
-            alpha[i] = self.compr * zc[i] * density_tot
-        for i in range(self.E_mat.shape[0]):
-            values[i] = np.sum(np.multiply(self.E_mat[i], alpha[i]))
+        # for i in range(nc):
+        #     alpha[i] = self.compr * zc[i] * density_tot
+        # for i in range(self.E_mat.shape[0]):
+        #     values[i] = np.sum(np.multiply(self.E_mat[i], alpha[i]))
         #     print(np.sum(np.multiply(self.E_mat[i], alpha[i])))
-        # for i in range(ne):
-        #     values[i] = self.compr*ze[i]*sum(density_tot_e)
+        for i in range(ne):
+            values[i] = self.compr * ze[i] * sum(density_tot_e)  # z_e uncorrected
         # print(zc)
         # print(ze)
         # print(sum(density_tot))
