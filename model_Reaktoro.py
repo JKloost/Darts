@@ -96,7 +96,7 @@ class Model(DartsModel):
                                      min_z=self.zero / 10, max_z=1 - self.zero / 10)
 
         #                  H2O,                     CO2,    Ca++,       CO3--,      Na+, Cl-
-        self.ini_stream = [0.94 - 4 * self.zero, self.zero, self.zero, self.zero, 0.03, 0.03]
+        self.ini_stream = [0.94 - 4 * self.zero, self.zero, 0.03, 0.03, self.zero, self.zero]
         self.inj_stream = [self.zero, 1 - 6 * self.zero, self.zero, self.zero, self.zero, self.zero]
         # self.inj_stream = self.ini_stream
 
@@ -104,7 +104,7 @@ class Model(DartsModel):
         self.params.max_ts = 5
         self.params.mult_ts = 2
 
-        self.params.tolerance_newton = 1e-2
+        self.params.tolerance_newton = 1e+6
         self.params.tolerance_linear = 1e-6
         self.params.max_i_newton = 20
         self.params.max_i_linear = 50
@@ -127,7 +127,7 @@ class Model(DartsModel):
                                  op_vector([self.physics.acc_flux_itor]),
                                  self.params, self.timer.node["simulation"])
         self.timer.node["initialization"].stop()
-        self.physics.engine.run(1000)
+        self.physics.engine.run(5000)
         print(self.timer.print("", ""))
 
     # Initialize reservoir and set boundary conditions:
@@ -367,7 +367,7 @@ class model_properties(property_container):
             zc_new = (zc[2]+zc[3])/2
             zc[2] = zc_new
             zc[3] = zc_new
-        zc = [float(i) / sum(zc) for i in zc]
+            # zc = [float(i) / sum(zc) for i in zc]
         db = SupcrtDatabase("supcrtbl")
         gas_comp = ["H2O(g)", "CO2(g)"]
         aq_comp = ['H2O(aq)', 'CO2(aq)', 'Ca+2', 'CO3-2', 'Na+', 'Cl-']
@@ -443,15 +443,22 @@ class model_properties(property_container):
         '''
         # Solid phase always needs to be present
         ph = list(range(len(self.nu)))  # ph = range(number of total phases)
-
-        if self.nu[0] < 0.04:  # if vapor phase is less than min_z, it does not exist
+        min_ph = 0.01
+        for i in range(len(self.nu)):
+            if density[i] < 0 and min_ph < 0.1:
+                min_ph_new = self.nu[i]
+                min_ph = max(min_ph, min_ph_new)
+            if density[1] > 1500 and min_ph < 0.1:
+                min_ph_new = self.nu[1]
+                min_ph = max(min_ph, min_ph_new)
+        if self.nu[0] <= min_ph:  # if vapor phase is less than min_z, it does not exist
             del ph[0]  # remove entry of vap
             density[0] = 0
             # self.nu[0] = 0
             # self.x[0] = np.zeros(len(zc))
             # self.nu = [float(i) / sum(self.nu) for i in self.nu]
 
-        elif self.nu[1] < 0.04:  # if liq phase is less than min_z, it does not exist
+        elif self.nu[1] <= min_ph:  # if liq phase is less than min_z, it does not exist
             del ph[1]
             density[1] = 0
             # self.nu[1] = 0
@@ -472,6 +479,11 @@ class model_properties(property_container):
 
 def Flash_Reaktoro(z_e, T, P, elem, min_z):
     m = Reaktoro()
+    if z_e[2] != z_e[3]:
+        ze_new = min(z_e[2], z_e[3])
+        z_e[2] = ze_new
+        z_e[3] = ze_new
+        z_e = [float(i) / sum(z_e) for i in z_e]
     m.addingproblem(T, P, z_e, elem)
     nu, x, z_c, density = m.output()  # this outputs comp h20, co2, ca, co3, caco3
     del m
