@@ -22,37 +22,17 @@ class Model(DartsModel):
         # Measure time spend on reading/initialization
         self.timer.node["initialization"].start()
 
-        mesh = conn_mesh()
-        nb = 100
-        block_m = np.arange(nb - 1, dtype='int32')
-        block_p = block_m + 1
-        permeability = 2
-        tranD = np.ones(nb - 1) * 0.1
-        tran = tranD * permeability
-        mesh.init(index_vector(block_m), index_vector(block_p),
-                  value_vector(tran), value_vector(tranD))
-        mesh.reverse_and_sort()
-        volume = np.array(mesh.volume, copy=False)
-        porosity = np.array(mesh.poro, copy=False)
-        depth = np.array(mesh.depth, copy=False)
-        volume.fill(100)
-        porosity.fill(1)
-        depth.fill(1000)
-        volume[0] = 1e10
-        volume[nb - 1] = 1e10
-        pressure = np.array(mesh.pressure, copy=False)
-
         self.zero = 1e-11
         init_ions = 0.5
         solid_init = 0.7
         equi_prod = (init_ions / 2) ** 2
         solid_inject = self.zero
         trans_exp = 3
-        # perm = 100 #/ (1 - solid_init) ** trans_exp
-        # # # """Reservoir"""
-        # nx = 50
-        # self.reservoir = StructReservoir(self.timer, nx=nx, ny=1, nz=1, dx=30, dy=10, dz=5, permx=perm, permy=perm,
-        #                                permz=perm/10, poro=1, depth=1000)
+        perm = 100 #/ (1 - solid_init) ** trans_exp
+        # # # # """Reservoir"""
+        nx = 100
+        self.reservoir = StructReservoir(self.timer, nx=nx, ny=1, nz=1, dx=10, dy=10, dz=1, permx=perm, permy=perm,
+                                       permz=perm/10, poro=1, depth=1000)
 
         # """well location"""
         # self.reservoir.add_well("I1")
@@ -104,37 +84,33 @@ class Model(DartsModel):
         self.params.max_ts = 5
         self.params.mult_ts = 2
 
-        self.params.tolerance_newton = 1e+6
+        self.params.tolerance_newton = 1e-2
         self.params.tolerance_linear = 1e-6
         self.params.max_i_newton = 20
         self.params.max_i_linear = 50
         self.params.newton_type = sim_params.newton_local_chop
         # self.params.newton_params[0] = 0.2
-        self.physics.set_uniform_initial_conditions(mesh, 200, self.ini_stream)
-        comp = np.array(mesh.composition, copy=False)
-        comp[0] = self.inj_stream[0]
-        comp[1] = self.inj_stream[1]
-        comp[2] = self.inj_stream[2]
 
-        # self.physics.new_bhp_inj(200, self.inj_stream)
-        pressure = np.array(mesh.pressure, copy=False)
-        pressure.fill(200)
-        pressure[0] = 230
-        pressure[-1] = 170
-
-        # self.runtime = 1000
-        self.physics.engine.init(mesh, ms_well_vector(),
-                                 op_vector([self.physics.acc_flux_itor]),
-                                 self.params, self.timer.node["simulation"])
         self.timer.node["initialization"].stop()
-        self.physics.engine.run(5000)
-        print(self.timer.print("", ""))
 
     # Initialize reservoir and set boundary conditions:
     def set_initial_conditions(self):
         """ initialize conditions for all scenarios"""
         self.physics.set_uniform_initial_conditions(self.reservoir.mesh, 200, self.ini_stream)
-
+        volume = np.array(self.reservoir.volume, copy=False)
+        volume.fill(100)
+        volume[0] = 1e10
+        volume[-1] = 1e10
+        pressure = np.array(self.reservoir.mesh.pressure, copy=False)
+        pressure.fill(200)
+        pressure[0] = 230
+        pressure[-1] = 170
+        comp = np.array(self.reservoir.mesh.composition, copy=False)
+        comp[0] = self.inj_stream[0]
+        comp[1] = self.inj_stream[1]
+        comp[2] = self.inj_stream[2]
+        comp[3] = self.inj_stream[3]
+        comp[4] = self.inj_stream[4]
         # composition = np.array(self.reservoir.mesh.composition, copy=False)
         # n_half = int(self.reservoir.nx * self.reservoir.ny * self.reservoir.nz / 2)
         # composition[2*n_half:] = 1e-6
@@ -145,7 +121,7 @@ class Model(DartsModel):
                 # w.control = self.physics.new_rate_inj(0.2, self.inj_stream, 0)
                 w.control = self.physics.new_bhp_inj(210, self.inj_stream)
             else:
-                w.control = self.physics.new_bhp_prod(190)
+                w.control = self.physics.new_bhp_prod(200)
 
     def set_op_list(self):
         self.op_num = np.array(self.reservoir.mesh.op_num, copy=False)
@@ -480,7 +456,8 @@ class model_properties(property_container):
 def Flash_Reaktoro(z_e, T, P, elem, min_z):
     m = Reaktoro()
     if z_e[2] != z_e[3]:
-        ze_new = min(z_e[2], z_e[3])
+        # ze_new = min(z_e[2], z_e[3])
+        ze_new = (z_e[2]+z_e[3])/2
         z_e[2] = ze_new
         z_e[3] = ze_new
         z_e = [float(i) / sum(z_e) for i in z_e]

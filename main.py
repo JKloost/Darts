@@ -11,10 +11,10 @@ from matplotlib import cm
 import os
 #import cProfile
 
-# redirect_darts_output('run.log')
+redirect_darts_output('run.log')
 n = Model()
-# n.init()
-# n.run_python(1000, timestep_python=True)
+n.init()
+n.run_python(1000, timestep_python=True)
 
 # if 0:
 #     n.run_python(1, timestep_python=True)
