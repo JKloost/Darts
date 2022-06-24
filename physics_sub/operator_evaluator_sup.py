@@ -24,6 +24,9 @@ class ReservoirOperators(operator_set_evaluator_iface):
               [0, 0, 0, 1, 0, 0, 1, 0],
               [0, 0, 0, 0, 1, 0, 0, 1],
               [0, 0, 0, 0, 0, 1, 0, 1]])
+        # self.E_mat = np.array([[1,0,0],
+        #                        [0,1,0],
+        #                        [0,0,1]])
         # self.E_mat = np.array([[1, 0, 0, 0, 0, 0, 0],      # elimination matrix, to transform comp to elem
         #       [0, 1, 0, 0, 0, 0, 0],
         #       [0, 0, 1, 0, 0, 1, 0],
@@ -66,7 +69,6 @@ class ReservoirOperators(operator_set_evaluator_iface):
         # if norm == True:
         #     zc = [float(q) / sum(zc) for q in zc]
         self.compr = (1 + self.property.rock_comp * (pressure - self.property.p_ref))  # compressible rock
-        vec_state_as_np = np.asarray(state)
         ze = np.append(vec_state_as_np[1:ne], 1 - np.sum(vec_state_as_np[1:ne]))
 
         # ze = np.zeros(self.E_mat.shape[0])
@@ -147,7 +149,8 @@ class ReservoirOperators(operator_set_evaluator_iface):
             # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self,zc)
             # kinetic_rate = [0,0,0,0]
             for i in range(neq):
-                values[shift + i] = kinetic_rate[i]
+                # values[shift + i] = kinetic_rate[i]
+                values[shift+i] = 0
 
         """ Gravity and Capillarity operators """
         shift += neq
@@ -179,6 +182,15 @@ class WellOperators(operator_set_evaluator_iface):
                                [0, 1, 0, 0, 0],
                                [0, 0, 1, 0, 1],
                                [0, 0, 0, 1, 1]])
+        self.E_mat = np.array([[1, 0, 0, 0, 0, 0, 0, 0],  # elimination matrix, to transform comp to elem
+                               [0, 1, 0, 0, 0, 0, 0, 0],
+                               [0, 0, 1, 0, 0, 0, 1, 0],
+                               [0, 0, 0, 1, 0, 0, 1, 0],
+                               [0, 0, 0, 0, 1, 0, 0, 1],
+                               [0, 0, 0, 0, 0, 1, 0, 1]])
+        # self.E_mat = np.array([[1, 0, 0],
+        #                        [0, 1, 0],
+        #                        [0, 0, 1]])
 
     def evaluate(self, state, values):
         """
@@ -213,8 +225,13 @@ class WellOperators(operator_set_evaluator_iface):
         # if norm == True:
         #     zc = [float(q) / sum(zc) for q in zc]
         self.compr = (1 + self.property.rock_comp * (pressure - self.property.p_ref))  # compressible rock
+        ze = np.append(vec_state_as_np[1:ne], 1 - np.sum(vec_state_as_np[1:ne]))
 
         density_tot = np.sum(sat * rho_m)
+        density_tot_e = np.zeros(nph)
+        for j in range(nph):
+            for i in range(ne):
+                density_tot_e[j] = np.sum((sat[j] * rho_m[j]) * np.sum(np.multiply(self.E_mat, x[j])))
         # zc = np.append(vec_state_as_np[1:nc], 1 - np.sum(vec_state_as_np[1:nc]))
         phi = 1
         """ CONSTRUCT OPERATORS HERE """  # need to do matrix vector multiplication
@@ -224,11 +241,13 @@ class WellOperators(operator_set_evaluator_iface):
         beta = np.zeros(nc)
         chi = np.zeros(nph * nc)
 
-        for i in range(nc):
-            # values[i] = self.compr * density_tot * zc[i]
-            alpha[i] = self.compr * density_tot * zc[i]
-        for i in range(self.E_mat.shape[0]):
-            values[i] = np.sum(np.multiply(self.E_mat[i], alpha[i]))
+        # for i in range(nc):
+        #     # values[i] = self.compr * density_tot * zc[i]
+        #     alpha[i] = self.compr * density_tot * zc[i]
+        # for i in range(self.E_mat.shape[0]):
+        #     values[i] = np.sum(np.multiply(self.E_mat[i], alpha[i]))
+        for i in range(ne):
+            values[i] = self.compr * ze[i] * sum(density_tot_e)  # z_e uncorrected
         # print('alpha', alpha)
         """ and alpha for mineral components """
         # for i in range(nm):
@@ -259,7 +278,8 @@ class WellOperators(operator_set_evaluator_iface):
             # kinetic_rate = self.property.kinetic_reaktoro.evaluate(
             # kinetic_rate = [0,0,0,0]
             for i in range(neq):
-                values[shift + i] = kinetic_rate[i]
+                # values[shift + i] = kinetic_rate[i]
+                values[shift + i] = 0
 
         """ Gravity and Capillarity operators """
         shift += neq
