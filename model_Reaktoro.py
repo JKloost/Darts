@@ -9,11 +9,6 @@ from physics_comp_sup import Compositional
 
 import matplotlib.pyplot as plt
 
-
-# TODO: properties_basic: Flash line 61
-#       properties_basic: Kinetic line 265
-
-# Model class creation here!
 class Model(DartsModel):
     def __init__(self):
         # Call base class constructor
