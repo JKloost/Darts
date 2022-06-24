@@ -31,15 +31,15 @@ class Model(DartsModel):
         perm = 100 #/ (1 - solid_init) ** trans_exp
         # # # # """Reservoir"""
         nx = 100
-        self.reservoir = StructReservoir(self.timer, nx=nx, ny=1, nz=1, dx=10, dy=10, dz=1, permx=perm, permy=perm,
+        self.reservoir = StructReservoir(self.timer, nx=nx, ny=1, nz=1, dx=1, dy=10, dz=1, permx=perm, permy=perm,
                                        permz=perm/10, poro=1, depth=1000)
 
         # """well location"""
-        # self.reservoir.add_well("I1")
-        # self.reservoir.add_perforation(well=self.reservoir.wells[-1], i=1, j=1, k=1, multi_segment=False)
-        #
-        # self.reservoir.add_well("P1")
-        # self.reservoir.add_perforation(well=self.reservoir.wells[-1], i=nx, j=1, k=1, multi_segment=False)
+        self.reservoir.add_well("I1")
+        self.reservoir.add_perforation(well=self.reservoir.wells[-1], i=1, j=1, k=1, multi_segment=False)
+
+        self.reservoir.add_well("P1")
+        self.reservoir.add_perforation(well=self.reservoir.wells[-1], i=nx, j=1, k=1, multi_segment=False)
 
         """Physical properties"""
         # Create property containers:
@@ -73,20 +73,20 @@ class Model(DartsModel):
 
         """ Activate physics """
         self.physics = Compositional(self.property_container, self.timer, n_points=101, min_p=1, max_p=1000,
-                                     min_z=self.zero / 10, max_z=1 - self.zero / 10)
+                                     min_z=self.zero / 10, max_z=1 - self.zero / 10, cache=1) # change 1001 for pertur water sat
 
         #                  H2O,                     CO2,    Ca++,       CO3--,      Na+, Cl-
-        self.ini_stream = [0.94 - 4 * self.zero, self.zero, 0.03, 0.03, self.zero, self.zero]
-        self.inj_stream = [self.zero, 1 - 6 * self.zero, self.zero, self.zero, self.zero, self.zero]
+        self.ini_stream = [0.8 - 2 * self.zero, self.zero, 0.08, 0.08, 0.02]
+        self.inj_stream = [self.zero, 1 - 6 * self.zero, self.zero, self.zero, self.zero]
         # self.inj_stream = self.ini_stream
 
-        self.params.first_ts = 1e-12
-        self.params.max_ts = 5
+        self.params.first_ts = 1e-2
+        self.params.max_ts = 10
         self.params.mult_ts = 2
 
-        self.params.tolerance_newton = 1e-2
+        self.params.tolerance_newton = 1e-3
         self.params.tolerance_linear = 1e-6
-        self.params.max_i_newton = 20
+        self.params.max_i_newton = 10
         self.params.max_i_linear = 50
         self.params.newton_type = sim_params.newton_local_chop
         # self.params.newton_params[0] = 0.2
@@ -97,20 +97,20 @@ class Model(DartsModel):
     def set_initial_conditions(self):
         """ initialize conditions for all scenarios"""
         self.physics.set_uniform_initial_conditions(self.reservoir.mesh, 200, self.ini_stream)
-        volume = np.array(self.reservoir.volume, copy=False)
-        volume.fill(100)
-        volume[0] = 1e10
-        volume[-1] = 1e10
-        pressure = np.array(self.reservoir.mesh.pressure, copy=False)
-        pressure.fill(200)
-        pressure[0] = 230
-        pressure[-1] = 170
-        comp = np.array(self.reservoir.mesh.composition, copy=False)
-        comp[0] = self.inj_stream[0]
-        comp[1] = self.inj_stream[1]
-        comp[2] = self.inj_stream[2]
-        comp[3] = self.inj_stream[3]
-        comp[4] = self.inj_stream[4]
+        # volume = np.array(self.reservoir.volume, copy=False)
+        # volume.fill(100)
+        # volume[0] = 1e10
+        # volume[-1] = 1e10
+        # pressure = np.array(self.reservoir.mesh.pressure, copy=False)
+        # pressure.fill(200)
+        # pressure[0] = 230
+        # pressure[-1] = 170
+        # comp = np.array(self.reservoir.mesh.composition, copy=False)
+        # comp[0] = self.inj_stream[0]
+        # comp[1] = self.inj_stream[1]
+        # comp[2] = self.inj_stream[2]
+        # comp[3] = self.inj_stream[3]
+        # comp[4] = self.inj_stream[4]
         # composition = np.array(self.reservoir.mesh.composition, copy=False)
         # n_half = int(self.reservoir.nx * self.reservoir.ny * self.reservoir.nz / 2)
         # composition[2*n_half:] = 1e-6
@@ -121,7 +121,7 @@ class Model(DartsModel):
                 # w.control = self.physics.new_rate_inj(0.2, self.inj_stream, 0)
                 w.control = self.physics.new_bhp_inj(210, self.inj_stream)
             else:
-                w.control = self.physics.new_bhp_prod(200)
+                w.control = self.physics.new_bhp_prod(190)
 
     def set_op_list(self):
         self.op_num = np.array(self.reservoir.mesh.op_num, copy=False)
@@ -134,6 +134,11 @@ class Model(DartsModel):
         (sat, x, rho, rho_m, mu, kr, ph) = self.property_container.evaluate(state)
 
         return sat[0]
+
+    def flash_properties(self, ze, T, P, elem):
+        nu, x, zc, density = Flash_Reaktoro(ze, T, P * 100000, elem)
+        return nu, x, zc, density
+
 
     def print_and_plot(self, filename):
 
@@ -404,7 +409,7 @@ class model_properties(property_container):
         ze = model_properties.comp_extension(self, ze, self.min_z)
         # print('ze extension', ze)
 
-        self.nu, self.x, zc, density = Flash_Reaktoro(ze, 320, pressure * 100000, self.elements_name, self.min_z)
+        self.nu, self.x, zc, density = Flash_Reaktoro(ze, 320, pressure * 100000, self.elements_name)
         # print('zc out', zc)
         zc = model_properties.comp_correction(self, zc, self.min_z)
         # print('zc corr', zc)
@@ -452,15 +457,18 @@ class model_properties(property_container):
                 print(density)
         return ph, zc, density
 
-
-def Flash_Reaktoro(z_e, T, P, elem, min_z):
+def Flash_Reaktoro(z_e, T, P, elem):
     m = Reaktoro()
     if z_e[2] != z_e[3]:
         # ze_new = min(z_e[2], z_e[3])
         ze_new = (z_e[2]+z_e[3])/2
         z_e[2] = ze_new
         z_e[3] = ze_new
-        z_e = [float(i) / sum(z_e) for i in z_e]
+        # z_e = [float(i) / sum(z_e) for i in z_e]
+    if z_e[4] != z_e[5]:
+        ze_new = (z_e[4] + z_e[5]) / 2
+        z_e[4] = ze_new
+        z_e[5] = ze_new
     m.addingproblem(T, P, z_e, elem)
     nu, x, z_c, density = m.output()  # this outputs comp h20, co2, ca, co3, caco3
     del m
