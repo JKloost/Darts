@@ -1,7 +1,7 @@
 import numpy as np
 
 class property_container:
-    def __init__(self, phases_name, components_name, elements_name, Mw, Cm=0, min_z=1e-11,
+    def __init__(self, phases_name, components_name, elements_name, reaktoro, Mw, Cm=0, min_z=1e-11,
                  diff_coef=0, rock_comp=1e-6, solid_dens=[]):
         super().__init__()
         # This class contains all the property evaluators required for simulation
@@ -11,6 +11,7 @@ class property_container:
         self.n_e = len(elements_name)
         self.components_name = components_name
         self.elements_name = elements_name
+        self.reaktoro = reaktoro
         self.phases_name = phases_name
         self.min_z = min_z
         self.Mw = Mw
@@ -18,7 +19,6 @@ class property_container:
         self.solid_dens = solid_dens
         for i in range(self.nm):
             solid_dens[i] /= Mw[i + self.nc - self.nm]
-
         self.rock_comp = rock_comp
         self.p_ref = 1.0
         self.diff_coef = diff_coef
