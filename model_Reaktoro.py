@@ -43,9 +43,10 @@ class Model(DartsModel):
         self.thermal = 0
         Mw = [18.015, 44.01, 40.078, 60.008, 22.99, 35.45, 100.086, 58.44]
         # Mw = [18.015, 44.01, 22.99, 35.45, 58.44]
+        self.reaktoro = Reaktoro()  # Initialise Reaktoro
         self.property_container = model_properties(phases_name=['gas', 'wat', 'sol'],
                                                    components_name=components_name, elements_name=elements_name,
-                                                   diff_coef=1e-9, rock_comp=1e-7,
+                                                   reaktoro=self.reaktoro, diff_coef=1e-9, rock_comp=1e-7,
                                                    Mw=Mw, min_z=self.zero / 10, solid_dens=[2000])
         self.components = self.property_container.components_name
         self.elements = self.property_container.elements_name
@@ -68,7 +69,7 @@ class Model(DartsModel):
 
         """ Activate physics """
         self.physics = Compositional(self.property_container, self.timer, n_points=101, min_p=1, max_p=1000,
-                                     min_z=self.zero / 10, max_z=1 - self.zero / 10, cache=1) # change 1001 for pertur water sat
+                                     min_z=self.zero / 10, max_z=1 - self.zero / 10, cache=0)  # change 1001 for pertur water sat
 
         #                  H2O,                     CO2,    Ca++,       CO3--,      Na+, Cl-
         self.ini_stream = [0.8 - 2 * self.zero, self.zero, 0.08, 0.08, 0.02]
@@ -130,8 +131,8 @@ class Model(DartsModel):
 
         return sat[0]
 
-    def flash_properties(self, ze, T, P, elem):
-        nu, x, zc, density = Flash_Reaktoro(ze, T, P * 100000, elem)
+    def flash_properties(self, ze, T, P):
+        nu, x, zc, density = Flash_Reaktoro(ze, T, P, self.reaktoro)
         return nu, x, zc, density
 
 
@@ -275,10 +276,10 @@ class Model(DartsModel):
 
 
 class model_properties(property_container):
-    def __init__(self, phases_name, components_name, elements_name, Mw, min_z=1e-12,
+    def __init__(self, phases_name, components_name, elements_name, reaktoro, Mw, min_z=1e-12,
                  diff_coef=0, rock_comp=1e-6, solid_dens=[]):
         # Call base class constructor
-        super().__init__(phases_name, components_name, elements_name, Mw, min_z=min_z, diff_coef=diff_coef,
+        super().__init__(phases_name, components_name, elements_name, reaktoro, Mw, min_z=min_z, diff_coef=diff_coef,
                          rock_comp=rock_comp, solid_dens=solid_dens)
 
     def comp_extension(self, z, min_z):
@@ -337,77 +338,11 @@ class model_properties(property_container):
                 z[c] = new_z
         return z
 
-    def run_density(self, pressure, zc):
-        if zc[2] != zc[3]:
-            # zc_new = min(zc[2], zc[3])
-            zc_new = (zc[2]+zc[3])/2
-            zc[2] = zc_new
-            zc[3] = zc_new
-            # zc = [float(i) / sum(zc) for i in zc]
-        db = SupcrtDatabase("supcrtbl")
-        gas_comp = ["H2O(g)", "CO2(g)"]
-        aq_comp = ['H2O(aq)', 'CO2(aq)', 'Ca+2', 'CO3-2', 'Na+', 'Cl-']
-        sol_comp = ['Calcite', 'Halite']
-        gas = GaseousPhase(gas_comp)
-        aq = AqueousPhase(aq_comp)
-        sol = MineralPhase(sol_comp[0])
-        sol2 = MineralPhase(sol_comp[1])
-        system = ChemicalSystem(db, gas, aq, sol, sol2)
-        specs = EquilibriumSpecs(system)
-        specs.temperature()
-        specs.pressure()
-
-        state = ChemicalState(system)
-        state.temperature(320, 'kelvin')
-        state.pressure(pressure*100000, 'pascal')
-        total_comp = aq_comp + sol_comp
-        for i in range(len(total_comp)):
-            state.set(total_comp[i], zc[i], 'mol')
-        conditions = EquilibriumConditions(specs)
-        conditions.temperature(state.temperature())
-        conditions.pressure(state.pressure())
-        # conditions.charge(0)
-        solver = EquilibriumSolver(specs)
-        solver.solve(state, conditions)
-        cp = ChemicalProps(state)
-        gas_props: ChemicalPropsPhaseConstRef = cp.phaseProps(0)
-        liq_props: ChemicalPropsPhaseConstRef = cp.phaseProps(1)
-        sol_props: ChemicalPropsPhaseConstRef = cp.phaseProps(2)
-        sol_props2: ChemicalPropsPhaseConstRef = cp.phaseProps(3)
-        volume_gas = gas_props.volume()
-        volume_aq = liq_props.volume()
-        volume_solid = sol_props.volume()+sol_props2.volume()
-        volume_tot = cp.volume()
-        S_w = volume_aq / volume_tot
-        S_g = volume_gas / volume_tot
-        S_s = volume_solid / volume_tot
-        density_gas = gas_props.density()
-        density_aq = liq_props.density()
-        density_solid = (2 * sol_props.density() * sol_props2.density()) / (sol_props.density() + sol_props2.density())
-        L = (density_aq * S_w) / (density_gas * S_g + density_aq * S_w + density_solid * S_s)
-        V = (density_gas * S_g) / (density_gas * S_g + density_aq * S_w + density_solid * S_s)
-        S = (density_solid * S_s) / (density_gas * S_g + density_aq * S_w + density_solid * S_s)
-        self.nu = [float(V), float(L), float(S)]
-        density = [density_gas,density_aq,density_solid]
-        # self.nu, x, zc, density = Flash_Reaktoro(zc, 320, pressure * 100000, self.components_name, self.min_z)
-        for i in range(len(density)):
-            if density[i] < 0:
-                print(zc)
-                print(density)
-        return density
-
-        # introduce temperature
-
-    def run_flash(self, pressure, ze):  # Change this to include 3 phases
+    def run_flash(self, pressure, ze):
         # Make every value that is the min_z equal to 0, as Reaktoro can work with 0, but not transport
-        # print('ze in',ze)
         ze = model_properties.comp_extension(self, ze, self.min_z)
-        # print('ze extension', ze)
-
-        self.nu, self.x, zc, density = Flash_Reaktoro(ze, 320, pressure * 100000, self.elements_name)
-        # print('zc out', zc)
+        self.nu, self.x, zc, density = Flash_Reaktoro(ze, 320, pressure, self.reaktoro)
         zc = model_properties.comp_correction(self, zc, self.min_z)
-        # print('zc corr', zc)
 
         '''
         Reaktoro input z_e, will output the components. Input also is the temp in K and pressure in Pa
@@ -419,7 +354,7 @@ class model_properties(property_container):
         '''
         # Solid phase always needs to be present
         ph = list(range(len(self.nu)))  # ph = range(number of total phases)
-        min_ph = 0.01
+        min_ph = 0.01  # min value to be considered inside the phase
         for i in range(len(self.nu)):
             if density[i] < 0 and min_ph < 0.1:
                 min_ph_new = self.nu[i]
@@ -430,32 +365,24 @@ class model_properties(property_container):
         if self.nu[0] <= min_ph:  # if vapor phase is less than min_z, it does not exist
             del ph[0]  # remove entry of vap
             density[0] = 0
-            # self.nu[0] = 0
-            # self.x[0] = np.zeros(len(zc))
-            # self.nu = [float(i) / sum(self.nu) for i in self.nu]
-
         elif self.nu[1] <= min_ph:  # if liq phase is less than min_z, it does not exist
             del ph[1]
             density[1] = 0
-            # self.nu[1] = 0
-            # self.x[1] = np.zeros(len(zc))
-            # self.nu = [float(i) / sum(self.nu) for i in self.nu]
-
+        # solid phase always present
         for i in range(len(self.nu)):
             if i > 1 and self.nu[i] < self.min_z:
                 self.nu[i] = self.min_z
-        for i in range(len(self.nu)):
-            if density[i] < 0 or density[1] > 1500:
-                print('ze', ze)
-                print('zc', zc)
-                print('nu', self.nu)
-                print(density)
+        # for i in range(len(self.nu)):
+        #     if density[i] < 0 or density[1] > 2000:
+        #         print('Something, somewhere, it went all terribly wrong, but its probably partial molar volumes')
+        #         print('ze', ze)
+        #         print('zc', zc)
+        #         print('nu', self.nu)
+        #         print(density)
         return ph, zc, density
 
-def Flash_Reaktoro(z_e, T, P, elem):
-    m = Reaktoro()
+def Flash_Reaktoro(z_e, T, P, reaktoro):
     if z_e[2] != z_e[3]:
-        # ze_new = min(z_e[2], z_e[3])
         ze_new = (z_e[2]+z_e[3])/2
         z_e[2] = ze_new
         z_e[3] = ze_new
@@ -464,9 +391,8 @@ def Flash_Reaktoro(z_e, T, P, elem):
         ze_new = (z_e[4] + z_e[5]) / 2
         z_e[4] = ze_new
         z_e[5] = ze_new
-    m.addingproblem(T, P, z_e, elem)
-    nu, x, z_c, density = m.output()  # this outputs comp h20, co2, ca, co3, caco3
-    del m
+    reaktoro.addingproblem(T, P, z_e)
+    nu, x, z_c, density = reaktoro.output()  # z_c order is determined by user, check if its the same order as E_mat
     return nu, x, z_c, density
 
 
@@ -488,10 +414,10 @@ class Reaktoro():
         # self.specs.charge()
         # self.specs.openTo("Na+")
 
-    def addingproblem(self, temp, pres, z_e, elem):
+    def addingproblem(self, temp, pres, z_e):
         state = ChemicalState(self.system)
         state.temperature(temp, 'kelvin')
-        state.pressure(pres, 'pascal')
+        state.pressure(pres, 'bar')
         for i in range(len(self.aq_comp)):
             state.set(self.aq_comp[i], z_e[i], 'mol')
         conditions = EquilibriumConditions(self.specs)
@@ -508,12 +434,12 @@ class Reaktoro():
         sol_props: ChemicalPropsPhaseConstRef = self.cp.phaseProps(2)
         sol_props2: ChemicalPropsPhaseConstRef = self.cp.phaseProps(3)
 
-        mol_aq = np.zeros(len(self.aq_comp))
-        for i in range(len(self.aq_comp)):
-            mol_aq[i] = self.cp.speciesAmount(self.aq_comp[i])
-        mol_gas = np.zeros(len(self.gas_comp))
-        for i in range(len(self.gas_comp)):
-            mol_gas[i] = self.cp.speciesAmount(self.gas_comp[i])
+        # mol_aq = np.zeros(len(self.aq_comp))
+        # for i in range(len(self.aq_comp)):
+        #     mol_aq[i] = self.cp.speciesAmount(self.aq_comp[i])
+        # mol_gas = np.zeros(len(self.gas_comp))
+        # for i in range(len(self.gas_comp)):
+        #     mol_gas[i] = self.cp.speciesAmount(self.gas_comp[i])
         mol_solid = np.zeros(len(self.sol_comp))
         for i in range(len(self.sol_comp)):
             mol_solid[i] = self.cp.speciesAmount(self.sol_comp[i])
@@ -533,9 +459,9 @@ class Reaktoro():
         solid2 = self.cp.speciesAmount('Halite')
         Na2 = self.cp.speciesAmount('Na+')
         Cl2 = self.cp.speciesAmount('Cl-')
-        total_mol = sum(mol_aq) + sum(mol_gas) + sum(mol_solid)
+        total_mol = self.cp.amount()
+        # total_mol = sum(mol_aq) + sum(mol_gas) + sum(mol_solid)
         total_mol_sol = sum(mol_solid)
-        total_mol_aq = sum(mol_aq)
 
         mol_frac_gas = gas_props.speciesMoleFractions()
         mol_frac_aq = liq_props.speciesMoleFractions()

@@ -12,7 +12,7 @@ import os
 #import cProfile
 
 redirect_darts_output('run.log')
-n = Model()
+n = Model()  # 458s, 349s point generation
 n.init()
 n.run_python(400, timestep_python=True)
 n.print_timers()
@@ -65,7 +65,7 @@ nu, x, z_c, density = [], [], [], []
 H2O, CO2, Ca, CO3, Na, Cl, Calcite, Halite = [], [], [], [], [], [], [], []
 for i in range(len(P)):
     z_e = [float(z1_darts[i]), float(z2_darts[i]), float(z3_darts[i]), float(z4_darts[i]), float(z5_darts[i]), float(z6_darts[i])]
-    nu_output, x_output, z_c_output, density_output = n.flash_properties(z_e, 320, P[i], n.property_container.elements_name) # itor
+    nu_output, x_output, z_c_output, density_output = n.flash_properties(z_e, 320, P[i]) # itor
     H2O.append(z_c_output[0])
     CO2.append(z_c_output[1])
     Ca.append(z_c_output[2])
