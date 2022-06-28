@@ -34,6 +34,11 @@ class Model(DartsModel):
         # Create property containers:
         components_name = ['H2O', 'CO2', 'Ca+2', 'CO3-2', 'Na+', 'Cl-', 'Calcite', 'Halite']
         elements_name = ['H2O', 'CO2', 'Ca+2', 'CO3-2', 'Na+', 'Cl-']
+
+        aqueous_phase = ['H2O(aq)', 'CO2(aq)', 'Ca+2', 'CO3-2', 'Na+', 'Cl-']
+        gas_phase = ['H2O(g)', 'CO2(g)']
+        solid_phase = ['Calcite', 'Halite']
+
         self.thermal = 0
         Mw = [18.015, 44.01, 40.078, 60.008, 22.99, 35.45, 100.086, 58.44]
         # Mw = [18.015, 44.01, 22.99, 35.45, 58.44]
@@ -129,7 +134,6 @@ class Model(DartsModel):
         return nu, x, zc, density
 
     def print_and_plot(self, filename):
-
         nc = self.property_container.nc
         Sg = np.zeros(self.reservoir.nb)
         Ss = np.zeros(self.reservoir.nb)
@@ -399,13 +403,10 @@ class Reaktoro:
         self.sol_comp = ['Calcite', 'Halite']
         gas = GaseousPhase(self.gas_comp)
         aq = AqueousPhase(self.aq_comp)
-        sol = MineralPhase(self.sol_comp[0])
-        sol2 = MineralPhase(self.sol_comp[1])
-        self.system = ChemicalSystem(db, gas, aq, sol, sol2)
-
-        self.specs = EquilibriumSpecs(self.system)
-        self.specs.temperature()
-        self.specs.pressure()
+        for i in range(len(self.sol_comp)):
+            globals()['sol%s' % i] = MineralPhase(self.sol_comp[i])
+        self.system = ChemicalSystem(db, gas, aq, sol0, sol1)
+        self.solver = EquilibriumSolver(self.system)
         self.cp = type(object)
         # self.specs.pH()
         # self.specs.charge()
@@ -417,12 +418,10 @@ class Reaktoro:
         state.pressure(pres, 'bar')
         for i in range(self.aq_comp.size()):
             state.set(self.aq_comp[i], z_e[i], 'mol')
-        conditions = EquilibriumConditions(self.specs)
-        conditions.temperature(state.temperature())
-        conditions.pressure(state.pressure())
         # conditions.charge(0)
-        solver = EquilibriumSolver(self.specs)
-        solver.solve(state, conditions)
+        result = self.solver.solve(state)
+        if not result.optima.succeeded:
+            print('Reaktoro did not find solution')
         self.cp = ChemicalProps(state)
 
     def output(self):
@@ -444,6 +443,7 @@ class Reaktoro:
         solid2 = self.cp.speciesAmount('Halite')
         Na2 = self.cp.speciesAmount('Na+')
         Cl2 = self.cp.speciesAmount('Cl-')
+
         total_mol = self.cp.amount()
         total_mol_sol = sol_props.amount()+sol_props2.amount()
 
@@ -485,5 +485,6 @@ class Reaktoro:
         z_c = [float(H2O / total_mol), float(CO2 / total_mol),
                float(Na / total_mol), float(Cl / total_mol), float(Na2 / total_mol), float(Cl2 / total_mol),
                float(solid / total_mol), float(solid2 / total_mol)]
+
         density = [float(density_gas), float(density_aq), float(density_solid)]
         return nu, x, z_c, density
