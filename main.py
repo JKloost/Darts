@@ -12,7 +12,7 @@ import os
 #import cProfile
 
 redirect_darts_output('run.log')
-n = Model()  # 458s, 349s point generation
+n = Model()  # 1220s, 1140 point generation
 n.init()
 n.run_python(400, timestep_python=True)
 n.print_timers()
@@ -45,7 +45,6 @@ n.print_stat()
 """ plot results 2D """
 Xn = np.array(n.physics.engine.X, copy=False)
 nc = n.property_container.nc + n.thermal
-#saturation = n.property_container.sat
 ne = n.property_container.n_e
 nb = n.reservoir.nb
 P = Xn[0:ne*nb:ne]
