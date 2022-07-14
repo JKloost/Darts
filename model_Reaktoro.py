@@ -19,9 +19,21 @@ class Model(DartsModel):
 
         self.zero = 1e-11
         perm = 100  # / (1 - solid_init) ** trans_exp
-        nx = 100
-        self.reservoir = StructReservoir(self.timer, nx=nx, ny=1, nz=1, dx=1, dy=10, dz=1, permx=perm, permy=perm,
-                                         permz=perm/10, poro=1, depth=1000)
+        nx = 80
+        dx = np.array([0.308641975, 0.617283951, 0.925925926, 1.234567901, 1.543209877, 1.851851852, 2.160493827, 2.469135802,
+              2.777777778, 3.086419753, 3.395061728, 3.703703704, 4.012345679, 4.320987654, 4.62962963, 4.938271605,
+              5.24691358, 5.555555556, 5.864197531, 6.172839506, 6.481481481, 6.790123457, 7.098765432, 7.407407407,
+              7.716049383, 8.024691358, 8.333333333, 8.641975309, 8.950617284, 9.259259259, 9.567901235, 9.87654321,
+              10.18518519, 10.49382716, 10.80246914, 11.11111111, 11.41975309, 11.72839506, 12.03703704, 12.34567901,
+              12.65432099, 12.96296296, 13.27160494, 13.58024691, 13.88888889, 14.19753086, 14.50617284, 14.81481481,
+              15.12345679, 15.43209877, 15.74074074, 16.04938272, 16.35802469, 16.66666667, 16.97530864, 17.28395062,
+              17.59259259, 17.90123457, 18.20987654, 18.51851852, 18.82716049, 19.13580247, 19.44444444, 19.75308642,
+              20.0617284, 20.37037037, 20.67901235, 20.98765432, 21.2962963, 21.60493827, 21.91358025, 22.22222222,
+              22.5308642, 22.83950617, 23.14814815, 23.45679012, 23.7654321, 24.07407407, 24.38271605, 24.69135802])
+        dy = 100
+        dz = 100
+        self.reservoir = StructReservoir(self.timer, nx=nx, ny=1, nz=1, dx=dx, dy=dy, dz=dz, permx=perm, permy=perm,
+                                         permz=perm/10, poro=0.2, depth=2000)
 
         # """well location"""
         self.reservoir.add_well("I1")
@@ -46,7 +58,7 @@ class Model(DartsModel):
         self.property_container = model_properties(phases_name=['gas', 'wat', 'sol'],
                                                    components_name=components_name, elements_name=elements_name,
                                                    reaktoro=self.reaktoro, diff_coef=1e-9, rock_comp=1e-7,
-                                                   Mw=Mw, min_z=self.zero / 10, solid_dens=[2000])
+                                                   Mw=Mw, min_z=self.zero / 10, solid_dens=[2630])
         self.components = self.property_container.components_name
         self.elements = self.property_container.elements_name
         self.phases = self.property_container.phases_name
@@ -56,7 +68,7 @@ class Model(DartsModel):
         # return [y, x], [V, 1-V]
         self.property_container.density_ev = dict([('gas', Density(compr=1e-4, dens0=100)),
                                                    ('wat', Density(compr=1e-6, dens0=1000)),
-                                                   ('sol', Density(compr=0, dens0=2700))])
+                                                   ('sol', Density(compr=0, dens0=2630))])
         self.property_container.viscosity_ev = dict([('gas', ViscosityConst(0.1)),
                                                      ('wat', ViscosityConst(1)),
                                                      ('sol', ViscosityConst(1))])
@@ -72,7 +84,16 @@ class Model(DartsModel):
                                      min_z=self.zero / 10, max_z=1 - self.zero / 10, cache=0)
 
         #                  H2O,                     CO2,    Ca++,       CO3--,      Na+, Cl-
-        self.ini_stream = [0.8 - 2 * self.zero, self.zero, 0.08, 0.08, 0.02]
+        # H2O = 1 kg
+        H2O = 55.5  # mol
+        Na = 4.5  # 3.44 # mol/kgW
+        Cl = 4.5  # mol/kgW
+        Ca = 0.8
+        CO3 = 0.8
+        ze = [H2O-4*self.zero, 0, Ca, CO3, Na, Cl]
+        ze = [float(i) / sum(ze) for i in ze]
+        self.ini_stream = ze[:-1]
+        # self.ini_stream = [0.8 - 2 * self.zero, self.zero, 0.08, 0.08, 0.02]
         self.inj_stream = [self.zero, 1 - 6 * self.zero, self.zero, self.zero, self.zero]
         # self.inj_stream = self.ini_stream
 
@@ -92,8 +113,21 @@ class Model(DartsModel):
     # Initialize reservoir and set boundary conditions:
     def set_initial_conditions(self):
         """ initialize conditions for all scenarios"""
-        self.physics.set_uniform_initial_conditions(self.reservoir.mesh, 200, self.ini_stream)
-        # volume = np.array(self.reservoir.volume, copy=False)
+        self.physics.set_uniform_initial_conditions(self.reservoir.mesh, 392.517, self.ini_stream)
+
+        volume = np.array(self.reservoir.volume, copy=False)
+        # volume[0:100] = [0.308641975, 0.617283951, 0.925925926, 1.234567901, 1.543209877, 1.851851852, 2.160493827,
+        #                  2.469135802, 2.777777778, 3.086419753, 3.395061728, 3.703703704, 4.012345679, 4.320987654,
+        #                  4.62962963, 4.938271605, 5.24691358, 5.555555556, 5.864197531, 6.172839506, 6.481481481,
+        #                  6.790123457, 7.098765432, 7.407407407, 7.716049383, 8.024691358, 8.333333333, 8.641975309,
+        #                  8.950617284, 9.259259259, 9.567901235, 9.87654321, 10.18518519, 10.49382716, 10.80246914,
+        #                  11.11111111, 11.41975309, 11.72839506, 12.03703704, 12.34567901, 12.65432099, 12.96296296,
+        #                  13.27160494, 13.58024691, 13.88888889, 14.19753086, 14.50617284, 14.81481481, 15.12345679,
+        #                  15.43209877, 15.74074074, 16.04938272, 16.35802469, 16.66666667, 16.97530864, 17.28395062,
+        #                  17.59259259, 17.90123457, 18.20987654, 18.51851852, 18.82716049, 19.13580247, 19.44444444,
+        #                  19.75308642, 20.0617284, 20.37037037, 20.67901235, 20.98765432, 21.2962963, 21.60493827,
+        #                  21.91358025, 22.22222222, 22.5308642, 22.83950617, 23.14814815, 23.45679012, 23.7654321,
+        #                  24.07407407, 24.38271605, 24.69135802]
         # volume.fill(100)
         # volume[0] = 1e10
         # volume[-1] = 1e10
@@ -115,9 +149,11 @@ class Model(DartsModel):
         for i, w in enumerate(self.reservoir.wells):
             if i == 0:
                 # w.control = self.physics.new_rate_inj(0.2, self.inj_stream, 0)
-                w.control = self.physics.new_bhp_inj(210, self.inj_stream)
+                w.control = self.physics.new_bhp_inj(392.517+100, self.inj_stream)
+                w.constraint = self.physics.new_rate_inj(500, self.inj_stream, 0)
+                # well constraint max 500m3/day
             else:
-                w.control = self.physics.new_bhp_prod(190)
+                w.control = self.physics.new_bhp_prod(392.517-10)
 
     def set_op_list(self):
         self.op_num = np.array(self.reservoir.mesh.op_num, copy=False)
@@ -288,7 +324,7 @@ class model_properties(property_container):
     def run_flash(self, pressure, ze):
         # Make every value that is the min_z equal to 0, as Reaktoro can work with 0, but not transport
         ze = comp_extension(ze, self.min_z)
-        self.nu, self.x, zc, density = Flash_Reaktoro(ze, 320, pressure, self.reaktoro)
+        self.nu, self.x, zc, density = Flash_Reaktoro(ze, 350, pressure, self.reaktoro)
         zc = comp_correction(zc, self.min_z)
 
         # Solid phase always needs to be present
