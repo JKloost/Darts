@@ -149,24 +149,24 @@ class PhaseRelPerm:
         return kr
 
 
-# class kinetic_basic():
-#     def __init__(self, equi_prod, kin_rate_cte, ne, combined_ions=True):
-#         self.equi_prod = equi_prod
-#         self.kin_rate_cte = kin_rate_cte
-#         self.kinetic_rate = np.zeros(ne)
-#         self.combined_ions = combined_ions
-#
-#     def evaluate(self, x, nu_sol):
-#         if self.combined_ions:
-#             ion_prod = (x[1][1] / 2) ** 2
-#             self.kinetic_rate[1] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
-#             self.kinetic_rate[-1] = - 0.5 * self.kinetic_rate[1]
-#         else:
-#             ion_prod = x[1][1] * x[1][2]
-#             self.kinetic_rate[1] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
-#             self.kinetic_rate[2] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
-#             self.kinetic_rate[-1] = - self.kinetic_rate[1]
-#         return self.kinetic_rate
+class kinetic_basic():
+    def __init__(self, equi_prod, kin_rate_cte, ne, combined_ions=True):
+        self.equi_prod = equi_prod
+        self.kin_rate_cte = kin_rate_cte
+        self.kinetic_rate = np.zeros(ne)
+        self.combined_ions = combined_ions
+
+    def evaluate(self, x, nu_sol):
+        if self.combined_ions:
+            ion_prod = (x[1][1] / 2) ** 2
+            self.kinetic_rate[1] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
+            self.kinetic_rate[-1] = - 0.5 * self.kinetic_rate[1]
+        else:
+            ion_prod = x[1][1] * x[1][2]
+            self.kinetic_rate[1] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
+            self.kinetic_rate[2] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
+            self.kinetic_rate[-1] = - self.kinetic_rate[1]
+        return self.kinetic_rate
 
 # class kinetic_basic():
 #     def __init__(self, equi_prod, kin_rate_cte, ne, combined_ions=True):

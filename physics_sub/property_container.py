@@ -129,9 +129,9 @@ class property_container:
         # two-phase flash - assume water phase is always present and water component last
         ph, zc, density = self.run_flash(pressure, ze)
         # density = self.run_density(pressure, zc)
-
         # Density from this is still in kg/m3 - need to make option whether you want set numbers or from Reaktoro
-
+        if len(ph) == 1:
+            self.x = [self.x,np.zeros(self.nc)]  # this triggers only when single phase
         for j in ph:
             M = 0
             # molar weight of mixture
@@ -142,7 +142,6 @@ class property_container:
             self.dens_m[j] = self.dens[j] / M
             self.mu[j] = self.viscosity_ev[self.phases_name[j]].evaluate()  # output in [cp]
         kinetic_rate = [0, 0, -1e-20, -1e-20, 1e-20]
-
         self.compute_saturation(ph)
 
         for j in ph:

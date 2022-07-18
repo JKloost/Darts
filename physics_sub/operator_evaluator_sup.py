@@ -14,16 +14,17 @@ class ReservoirOperators(operator_set_evaluator_iface):
         self.min_z = property_container.min_z
         self.property = property_container
         self.thermal = thermal
+        #self.E_mat =
         self.E_mat = np.array([[1, 0, 0, 0, 0],      # elimination matrix, to transform comp to elem
               [0, 1, 0, 0, 0],
               [0, 0, 1, 0, 1],
               [0, 0, 0, 1, 1]])
-        self.E_mat = np.array([[1, 0, 0, 0, 0, 0, 0, 0],      # elimination matrix, to transform comp to elem
-              [0, 1, 0, 0, 0, 0, 0, 0],
-              [0, 0, 1, 0, 0, 0, 1, 0],
-              [0, 0, 0, 1, 0, 0, 1, 0],
-              [0, 0, 0, 0, 1, 0, 0, 1],
-              [0, 0, 0, 0, 0, 1, 0, 1]])
+        # self.E_mat = np.array([[1, 0, 0, 0, 0, 0, 0, 0],      # elimination matrix, to transform comp to elem
+        #       [0, 1, 0, 0, 0, 0, 0, 0],
+        #       [0, 0, 1, 0, 0, 0, 1, 0],
+        #       [0, 0, 0, 1, 0, 0, 1, 0],
+        #       [0, 0, 0, 0, 1, 0, 0, 1],
+        #       [0, 0, 0, 0, 0, 1, 0, 1]])
         # self.E_mat = np.array([[1,0,0],
         #                        [0,1,0],
         #                        [0,0,1]])
@@ -32,6 +33,25 @@ class ReservoirOperators(operator_set_evaluator_iface):
         #       [0, 0, 1, 0, 0, 1, 0],
         #       [0, 0, 0, 1, 0, 0, 1],
         #       [0, 0, 0, 0, 1, 0, 1]])
+        # self.E_mat = np.array([[1, 0, 0, 0, 0, 0],
+        #                        [0, 1, 0, 0, 0, 0],
+        #                        [0, 0, 1, 0, 0, 0],
+        #                        [0, 0, 0, 1, 0, 0],
+        #                        [0, 0, 0, 0, 1, 0],
+        #                        [0, 0, 0, 0, 0, 1]])
+        # self.E_mat = np.array([[1, 0, 0, 0, 0, 0, 0],
+        #                        [0, 1, 0, 0, 0, 0, 1],
+        #                        [0, 0, 1, 0, 0, 1, 0],
+        #                        [0, 0, 0, 1, 0, 0, 0],
+        #                        [0, 0, 0, 0, 1, 1, 1]])
+        # self.E_mat = np.array([[1, 0, 0, 0, 0],
+        #                        [0, 1, 0, 0, 1],
+        #                        [0, 0, 1, 0, 0],
+        #                        [0, 0, 0, 1, 1]])
+        # self.E_mat = np.array([[1, 0, 0, 0],
+        #                        [0, 1, 0, 1],
+        #                        [0, 0, 1, 1]])
+
 
     def evaluate(self, state, values):
         """
@@ -182,15 +202,33 @@ class WellOperators(operator_set_evaluator_iface):
                                [0, 1, 0, 0, 0],
                                [0, 0, 1, 0, 1],
                                [0, 0, 0, 1, 1]])
-        self.E_mat = np.array([[1, 0, 0, 0, 0, 0, 0, 0],  # elimination matrix, to transform comp to elem
-                               [0, 1, 0, 0, 0, 0, 0, 0],
-                               [0, 0, 1, 0, 0, 0, 1, 0],
-                               [0, 0, 0, 1, 0, 0, 1, 0],
-                               [0, 0, 0, 0, 1, 0, 0, 1],
-                               [0, 0, 0, 0, 0, 1, 0, 1]])
+        # self.E_mat = np.array([[1, 0, 0, 0, 0, 0, 0, 0],  # elimination matrix, to transform comp to elem
+        #                        [0, 1, 0, 0, 0, 0, 0, 0],
+        #                        [0, 0, 1, 0, 0, 0, 1, 0],
+        #                        [0, 0, 0, 1, 0, 0, 1, 0],
+        #                        [0, 0, 0, 0, 1, 0, 0, 1],
+        #                        [0, 0, 0, 0, 0, 1, 0, 1]])
         # self.E_mat = np.array([[1, 0, 0],
         #                        [0, 1, 0],
         #                        [0, 0, 1]])
+        # self.E_mat = np.array([[1, 0, 0, 0, 0, 0],
+        #                        [0, 1, 0, 0, 0, 0],
+        #                        [0, 0, 1, 0, 0, 0],
+        #                        [0, 0, 0, 1, 0, 0],
+        #                        [0, 0, 0, 0, 1, 0],
+        #                        [0, 0, 0, 0, 0, 1]])
+        # self.E_mat = np.array([[1, 0, 0, 0, 0, 0, 0],
+        #                        [0, 1, 0, 0, 0, 0, 1],
+        #                        [0, 0, 1, 0, 0, 1, 0],
+        #                        [0, 0, 0, 1, 0, 0, 0],
+        #                        [0, 0, 0, 0, 1, 1, 1]])
+        # self.E_mat = np.array([[1, 0, 0, 0],
+        #                        [0, 1, 0, 1],
+        #                        [0, 0, 1, 1]])
+        # self.E_mat = np.array([[1, 0, 0, 0, 0],
+        #                        [0, 1, 0, 0, 1],
+        #                        [0, 0, 1, 0, 0],
+        #                        [0, 0, 0, 1, 1]])
 
     def evaluate(self, state, values):
         """
