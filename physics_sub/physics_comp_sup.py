@@ -15,8 +15,8 @@ class Compositional(PhysicsBase):
         # Obtain properties from user input during initialization:
         self.timer = timer.node["simulation"]
         self.components = property_container.components_name
-        self.elements = property_container.elements_name
         self.nc = property_container.nc
+
         self.ne = property_container.n_e
 
         self.phases = property_container.phases_name
@@ -84,8 +84,7 @@ class Compositional(PhysicsBase):
         # Production wells:
         self.new_bhp_prod = lambda bhp: bhp_prod_well_control(bhp)
         self.new_rate_prod = lambda rate, iph: rate_prod_well_control(self.phases, iph, self.n_vars,
-                                                                      self.n_vars,
-                                                                     rate, self.rate_itor)
+                                                                      self.n_vars, rate, self.rate_itor)
 
     # Define some class methods:
     def init_wells(self, wells):
@@ -102,7 +101,7 @@ class Compositional(PhysicsBase):
         pressure = np.array(mesh.pressure, copy=False)
         pressure.fill(uniform_pressure)
 
-         # set initial composition
+        # set initial composition
         mesh.composition.resize(nb * (self.ne - 1))
         composition = np.array(mesh.composition, copy=False)
         # composition[:] = np.array(uniform_composition)

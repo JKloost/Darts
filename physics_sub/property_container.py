@@ -1,17 +1,14 @@
 import numpy as np
 
 class property_container:
-    def __init__(self, phases_name, components_name, elements_name, reaktoro, Mw, Cm=0, min_z=1e-11,
+    def __init__(self, phases_name, components_name, Mw, Cm=0, min_z=1e-11,
                  diff_coef=0, rock_comp=1e-6, solid_dens=[]):
         super().__init__()
         # This class contains all the property evaluators required for simulation
         self.nph = len(phases_name)
         self.nm = len(solid_dens)
         self.nc = len(components_name)
-        self.n_e = len(elements_name)
         self.components_name = components_name
-        self.elements_name = elements_name
-        self.reaktoro = reaktoro
         self.phases_name = phases_name
         self.min_z = min_z
         self.Mw = Mw
@@ -127,11 +124,11 @@ class property_container:
 
         self.clean_arrays()
         # two-phase flash - assume water phase is always present and water component last
+
         ph, zc, density = self.run_flash(pressure, ze)
-        # density = self.run_density(pressure, zc)
-        # Density from this is still in kg/m3 - need to make option whether you want set numbers or from Reaktoro
+
         if len(ph) == 1:
-            self.x = [self.x,np.zeros(self.nc)]  # this triggers only when single phase
+            self.x = [self.x, np.zeros(self.nc)]  # this triggers only when single phase
         for j in ph:
             M = 0
             # molar weight of mixture
@@ -141,14 +138,14 @@ class property_container:
             self.dens = density
             self.dens_m[j] = self.dens[j] / M
             self.mu[j] = self.viscosity_ev[self.phases_name[j]].evaluate()  # output in [cp]
-        kinetic_rate = [0, 0, -1e-20, -1e-20, 1e-20]
+
         self.compute_saturation(ph)
 
         for j in ph:
             self.kr[j] = self.rel_perm_ev[self.phases_name[j]].evaluate(self.sat[j])
             self.pc[j] = 0
 
-        return self.sat, self.x, self.dens, self.dens_m, self.mu, self.kr, self.pc, ph, zc, kinetic_rate
+        return self.sat, self.x, self.dens, self.dens_m, self.mu, self.kr, self.pc, ph
 
     def evaluate_thermal(self, state):
         """
