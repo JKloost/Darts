@@ -48,7 +48,15 @@ class Model(DartsModel):
         # Create property containers:
         components_name = ['H2O', 'CO2', 'Na+', 'Cl-', 'Halite']
         elements_name = ['H2O', 'CO2', 'Na+', 'Cl-']
-
+        # E_mat = np.array([[1, 0, 0, 0, 0, 0, 0],
+        #                   [0, 1, 0, 0, 0, 0, 1],
+        #                   [0, 0, 1, 0, 0, 1, 0],
+        #                   [0, 0, 0, 1, 0, 0, 0],
+        #                   [0, 0, 0, 0, 1, 1, 2]])
+        E_mat = np.array([[1, 0, 0, 0, 0],
+                          [0, 1, 0, 0, 0],
+                          [0, 0, 1, 0, 1],
+                          [0, 0, 0, 1, 1]])
         # aqueous_phase = ['H2O(aq)', 'CO2(aq)', 'Ca+2', 'CO3-2', 'Na+', 'Cl-']
         # gas_phase = ['H2O(g)', 'CO2(g)']
         # solid_phase = ['Calcite', 'Halite']
@@ -57,13 +65,16 @@ class Model(DartsModel):
         Mw = [18.015, 44.01, 22.99, 35.45, 58.44]
         # Mw = [18.015, 44.01, 22.99, 35.45, 58.44]
         self.reaktoro = Reaktoro()  # Initialise Reaktoro
+        solid_density = np.zeros(1)
+        solid_density[0] = 2000  # fill in density for amount of solids present
+
         self.property_container = model_properties(phases_name=['gas', 'wat', 'sol'],
                                                    components_name=components_name, elements_name=elements_name,
-                                                   reaktoro=self.reaktoro, diff_coef=1e-9, rock_comp=1e-7,
-                                                   Mw=Mw, min_z=self.zero / 10, solid_dens=[2630])
-        self.components = self.property_container.components_name
-        self.elements = self.property_container.elements_name
-        self.phases = self.property_container.phases_name
+                                                   reaktoro=self.reaktoro, E_mat=E_mat, diff_coef=1e-9, rock_comp=1e-7,
+                                                   Mw=Mw, min_z=self.zero / 10, solid_dens=solid_density)
+        # self.components = self.property_container.components_name
+        # self.elements = self.property_container.elements_name
+        # self.phases = self.property_container.phases_name
 
         """ properties correlations """
         # self.property_container.flash_ev = Flash(self.components[:-1], [10, 1e-12, 1e-1], self.zero)
@@ -285,13 +296,17 @@ class Model(DartsModel):
 
 
 class model_properties(property_container):
-    def __init__(self, phases_name, components_name, elements_name, reaktoro, Mw, min_z=1e-12,
+    def __init__(self, phases_name, components_name, elements_name, reaktoro, E_mat, Mw, min_z=1e-12,
                  diff_coef=float(0), rock_comp=1e-6, solid_dens=None):
         if solid_dens is None:
             solid_dens = []
         # Call base class constructor
-        super().__init__(phases_name, components_name, elements_name, reaktoro, Mw, min_z=min_z, diff_coef=diff_coef,
+        super().__init__(phases_name, components_name, Mw, min_z=min_z, diff_coef=diff_coef,
                          rock_comp=rock_comp, solid_dens=solid_dens)
+        self.n_e = len(elements_name)
+        self.elements_name = elements_name
+        self.reaktoro = reaktoro
+        self.E_mat = E_mat
 
     def run_flash(self, pressure, ze):
         # Make every value that is the min_z equal to 0, as Reaktoro can work with 0, but not transport
