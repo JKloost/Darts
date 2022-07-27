@@ -49,20 +49,16 @@ nc = n.property_container.nc + n.thermal
 ne = n.property_container.n_e
 nb = n.reservoir.nb
 P = Xn[0:ne*nb:ne]
-z1_darts = Xn[1:ne*nb:ne]
-z2_darts = Xn[2:ne*nb:ne]
-z3_darts = Xn[3:ne*nb:ne]
-# z4_darts = Xn[4:ne*nb:ne]
-# z5_darts = Xn[5:ne*nb:ne]
-z4_darts = np.zeros(len(z1_darts))
-for i in range(len(z1_darts)):
-    z4_darts[i] = 1 - z1_darts[i] - z2_darts[i] - z3_darts[i]# - z4_darts[i] - z5_darts[i]
+
+z_darts = np.zeros((ne, len(P)))
+for i in range(1, ne):
+    z_darts[i-1] = Xn[i:ne*nb:ne]
+z_darts[-1] = np.ones(len(P)) - list(map(sum, zip(*z_darts[:-1])))
 
 nu, x, z_c, density = [], [], [], []
 H2O, CO2, Na, Cl, Halite = [], [], [], [], []
 for i in range(len(P)):
-    z_e = [z1_darts[i], z2_darts[i], z3_darts[i], z4_darts[i]]#, z5_darts[i], z6_darts[i]]
-    nu_output, x_output, z_c_output, density_output, kinetic_rate = n.flash_properties(z_e, 350, P[i])  # itor
+    nu_output, x_output, z_c_output, density_output, kinetic_rate = n.flash_properties(z_darts[:, i], 350, P[i])  # itor
     H2O.append(z_c_output[0])
     CO2.append(z_c_output[1])
     Na.append(z_c_output[2])
