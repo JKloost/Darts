@@ -47,8 +47,10 @@ class Model(DartsModel):
 
         """Physical properties"""
         # Create property containers:
-        components_name = ['OH-', 'H+', 'Na+', 'Cl-', 'CO3-2', 'HCO3-', 'H2O']
-        elements_name = ['OH-', 'H+', 'Na+', 'Cl-', 'CO3-2']
+        # components_name = ['OH-', 'H+', 'Na+', 'Cl-', 'CO3-2', 'HCO3-', 'H2O']
+        # elements_name = ['OH-', 'H+', 'Na+', 'Cl-', 'CO3-2']
+        components_name = ['Na+', 'Cl-']
+        elements_name = ['Na+', 'Cl-']
         # aqueous_phase = ['H2O(aq)', 'CO2(aq)', 'Ca+2', 'CO3-2', 'Na+', 'Cl-']
         # gas_phase = ['H2O(g)', 'CO2(g)']
         # solid_phase = ['Calcite', 'Halite']
@@ -67,12 +69,14 @@ class Model(DartsModel):
         #                   [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0],
         #                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
         #                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]])
-        E_mat = np.array([[1, 0, 0, 0, 0, 0, 1],
-                          [0, 1, 0, 0, 0, 1, 1],
-                          [0, 0, 1, 0, 0, 0, 0],
-                          [0, 0, 0, 1, 0, 0, 0],
-                          [0, 0, 0, 0, 1, 1, 0],
-                          [0, 0, 0, 0, 0, 0, 0]])
+        # E_mat = np.array([[1, 0, 0, 0, 0, 0, 1],
+        #                   [0, 1, 0, 0, 0, 1, 1],
+        #                   [0, 0, 1, 0, 0, 0, 0],
+        #                   [0, 0, 0, 1, 0, 0, 0],
+        #                   [0, 0, 0, 0, 1, 1, 0],
+        #                   [0, 0, 0, 0, 0, 0, 0]])
+        E_mat = np.array([[1, 0],
+                          [0, 1]])
         E_mat_ini = np.array([[1, 0, 0, 0, 0, 0, 1],
                               [0, 1, 0, 0, 0, 0, 1],
                               [0, 0, 1, 0, 0, 0, 0],
@@ -124,25 +128,22 @@ class Model(DartsModel):
 
         phreeqc = phreeqc_mod.IPhreeqc()
         phreeqc.load_database('phreeqc_all_formations.dat')
-        #phreeqc.load_database(r"phreeqc.dat")
-        ini_stream = self.ini_stream_method()
-        ini = phreeqc.run_string(ini_stream)
-        inj_stream = self.inj_stream_method()
-        inj = phreeqc.run_string(inj_stream)
 
         inj_string = self.inj_stream_2()
         inj_stream2 = phreeqc.run_string(inj_string)
         inj_output = phreeqc.get_selected_output_array()[1]
-        z_c_inj = [inj_output[1], inj_output[2], inj_output[3], inj_output[4], inj_output[5], inj_output[6],
-                   inj_output[7]]
+        z_c_inj = [inj_output[0], inj_output[1]]
         z_c_inj = [float(i) / sum(z_c_inj) for i in z_c_inj]
+        pH_inj = inj_output[-1]
+        print('inj: ', pH_inj)
 
         ini_string = self.ini_stream_2()
         ini_stream2 = phreeqc.run_string(ini_string)
         ini_output = phreeqc.get_selected_output_array()[1]
-        z_c_ini = [ini_output[1], ini_output[2], ini_output[3], ini_output[4], ini_output[5], ini_output[6],
-                   inj_output[7]]
+        z_c_ini = [ini_output[0], ini_output[1]]
         z_c_ini = [float(i) / sum(z_c_ini) for i in z_c_ini]
+        pH_ini = ini_output[-1]
+        print('ini: ', pH_ini)
 
         # solver_inj.solve(state_inj, conditions_inj)
         # solver_ini.solve(state_ini, conditions_ini)
@@ -264,25 +265,11 @@ class Model(DartsModel):
         nu, x, zc, density, pH = Flash_Reaktoro(ze, T, P, self.reaktoro)
         return nu, x, zc, density, pH
 
-    def inj_stream_method(self):
-        initial_conditions_inj = """
-        TITLE Example 11.--Transport and ion exchange.
-        SOLUTION 0
-            units            ppm
-            temp             20.0
-            pH               11.1     charge
-            Na               8270.6
-            Cl               33.5
-            C                5660  as CO3
-        END
-            """
-        return initial_conditions_inj
-
     def inj_stream_2(self):
         string = ("""
                         USER_PUNCH
-                        -headings	Water(mol)         OH-(mol)		 H+(mol)	Na+(mol)	   Cl-(mol)      CO3-2(mol)     HCO3-(mol)      H2O(mol)    Vol_aq(L)   pH          density(kg/L)  
-                        10 PUNCH	TOTMOLE("water")   MOL("OH-")   MOL("H+")   MOL("Na+")     MOL("Cl-")   MOL("CO3-2")    MOL("HCO3-")    MOL("H2O")  SOLN_VOL    (-LA("H+"))     RHO  
+                        -headings	Na+(mol)	    Cl-(mol)        CO3-2(mol)      pH         
+                        10 PUNCH	TOTMOLE("Na")   TOTMOLE("Cl")   TOTMOLE("C")  (-LA("H+"))
 
                         SELECTED_OUTPUT
                             -selected_out    true
@@ -292,10 +279,10 @@ class Model(DartsModel):
                         SOLUTION 1
                         units            ppm
                         temp             20.0
-                        pH               11.1     
+                        #pH11.1     
                         Na               8270.6
                         Cl               33.5 charge
-                        C(+4)                5660  as CO3
+                        #C(+4)5660asCO3
                         
                         KNOBS
                             -convergence_tolerance  1e-10
@@ -305,8 +292,8 @@ class Model(DartsModel):
     def ini_stream_2(self):
         string = ("""
                         USER_PUNCH
-                        -headings	Water(mol)         OH-(mol)		 H+(mol)	Na+(mol)	   Cl-(mol)      CO3-2(mol)     HCO3-(mol)      H2O(mol)    Vol_aq(L)   pH          density(kg/L)  
-                        10 PUNCH	TOTMOLE("water")   MOL("OH-")   MOL("H+")   MOL("Na+")     MOL("Cl-")   MOL("CO3-2")    MOL("HCO3-")    MOL("H2O")  SOLN_VOL    (-LA("H+"))     RHO  
+                        -headings	Na+(mol)	    Cl-(mol)        CO3-2(mol)      pH         
+                        10 PUNCH	TOTMOLE("Na")   TOTMOLE("Cl")   TOTMOLE("C")  (-LA("H+"))
 
                         SELECTED_OUTPUT
                             -selected_out    true
@@ -316,29 +303,15 @@ class Model(DartsModel):
                         SOLUTION 1
                         units            ppm
                         temp             20.0
-                        pH               7.0     
+                        #pH7.0     
                         Na               3931
                         Cl               6068 charge
-                        C                17.8  as CO3
+                        #C17.8asCO3
 
                         KNOBS
                             -convergence_tolerance  1e-10
                         END""")
         return string
-
-    def ini_stream_method(self):
-        initial_conditions_ini = """
-        TITLE Example 11.--Transport and ion exchange.
-        SOLUTION 0
-            units            ppm
-            temp             20.0
-            pH               7.0     charge
-            Na               3931
-            Cl               6068
-            C                17.8  as CO3
-        END
-            """
-        return initial_conditions_ini
 
 class model_properties(property_container):
     def __init__(self, phases_name, components_name, elements_name, reaktoro, E_mat, Mw, min_z=1e-12,
@@ -520,55 +493,37 @@ class Reaktoro:
         #     self.failure = True
         #     print('z_e', z_e)
         #     # print(state)
-        # string = ("""
-        #         USER_PUNCH
-        #                 -headings	Water(mol)         OH-(mol)		 H+(mol)	Na+(mol)	   Cl-(mol)      CO3-2(mol)     HCO3-(mol)      H2O(mol)    Vol_aq(L)   pH          density(kg/L)
-        #                 10 PUNCH	TOTMOLE("water")   MOL("OH-")   MOL("H+")   MOL("Na+")     MOL("Cl-")   MOL("CO3-2")    MOL("HCO3-")    MOL("H2O")  SOLN_VOL    (-LA("H+"))     RHO
-        #
-        #         SELECTED_OUTPUT
-        #             -selected_out    true
-        #             -user_punch      true
-        #             -reset           false
-        #             -high_precision  true
-        #         SOLUTION 1
-        #             temp      %.2f
-        #             pressure  %.4f
-        #         REACTION 1
-        #             OH-         %.10f
-        #             H+		    %.10f
-        #             Na+		    %.10f
-        #             Cl-          %.10f
-        #             CO3-2       %.10f
-        # H         # %.10f
-        # O(-2)		#    %.10f
-        # C		    #%.10f as CO3
-        # Na        # %.10f
-        # Cl        # %.10f
-        #             1
-        #         KNOBS
-        #             -convergence_tolerance  1e-10
-        #         END""" % (
-        #     temp, pres, z_e[0], z_e[1], z_e[2], z_e[3], z_e[4]))
-        H = z_e[0] + z_e[1]
-        O = z_e[0] + 3 * z_e[4]
-        C = z_e[4]
-        Na = z_e[2]
-        Cl = z_e[3]
-        if H / 2 <= O:
-            water_mass = H / 2 * 0.018016
-            H = 0
-            O = O - H / 2
-        else:
-            water_mass = O * 0.018016
-            H = H - 2 * O
-            O = 0
-        print(H)
+
+        # USER_PUNCH
+        # -headings
+        # Water(mol)
+        # OH - (mol)
+        # H + (mol)
+        # Na + (mol)
+        # Cl - (mol)
+        # CO3 - 2(mol)
+        # HCO3 - (mol)
+        # H2O(mol)
+        # Vol_aq(L)
+        # pH
+        # density(kg / L)
+        # 10
+        # PUNCH
+        # TOTMOLE("water")
+        # MOL("OH-")
+        # MOL("H+")
+        # MOL("Na+")
+        # MOL("Cl-")
+        # MOL("CO3-2")
+        # MOL("HCO3-")
+        # MOL("H2O")
+        # SOLN_VOL(-LA("H+"))
+        # RHO
         print(z_e)
-        print(water_mass)
         string = ("""
                 USER_PUNCH
-                -headings	Water(mol)         OH-(mol)		 H+(mol)	Na+(mol)	   Cl-(mol)      CO3-2(mol)     HCO3-(mol)      H2O(mol)    Vol_aq(L)       pH      density(kg/L)  
-                10 PUNCH	TOTMOLE("water")   MOL("OH-")   MOL("H+")   MOL("Na+")     MOL("Cl-")   MOL("CO3-2")    MOL("HCO3-")    MOL("H2O")  SOLN_VOL    (-LA("H+"))     RHO  
+                -headings	Na+(mol)	    Cl-(mol)         pH         density (kg/L)
+                10 PUNCH	TOTMOLE("Na")   TOTMOLE("Cl")  (-LA("H+"))   RHO
 
                 SELECTED_OUTPUT
                     -selected_out    true
@@ -576,22 +531,21 @@ class Reaktoro:
                     -reset           false
                     -high_precision  true
                 SOLUTION 1
-                    units       mol/kgw
+                    ph          7.0 charge
                     temp        %.2f
-                    pressure    %.4f
-                    -water      %.10f kg
-                    H           %.10f
-                    O(0)  	    %.10f
-                    C(+4)       %.10f as CO3
+                    pressure    %.4f       
                     Na          %.10f
                     Cl          %.10f
+
+                    
                 KNOBS
                     -convergence_tolerance  1e-10
                 END""" % (
             # temp, pres, water_mass, z_e[0], z_e[1], z_e[2], z_e[3], z_e[4]))
-            temp, pres, water_mass, H, O, C, Na, Cl))
+            temp, pres, z_e[0], z_e[1]))
         output_string = self.phreeqc.run_string(string)
         self.output_phreeqc = self.phreeqc.get_selected_output_array()[1]
+        print(self.output_phreeqc)
 
 
     def output(self):
@@ -692,11 +646,10 @@ class Reaktoro:
 
         nu = [1]
         phq = self.output_phreeqc
-        total_mol = phq[1]+phq[2]+phq[3]+phq[4]+phq[5]+phq[6]+phq[7]
-        mol_frac_aq = [phq[1]/total_mol, phq[2]/total_mol, phq[3]/total_mol, phq[4]/total_mol, phq[5]/total_mol,
-                       phq[6]/total_mol, phq[7]/total_mol]
-        density = [phq[-1]]
-        pH = phq[-2]
+        total_mol = phq[0]+phq[1]#+phq[2]
+        mol_frac_aq = [phq[0]/total_mol, phq[1]/total_mol]# , phq[2]/total_mol]
+        density = [phq[-2]*1000]
+        pH = phq[-3]
         x = mol_frac_aq
         z_c = x
         return nu, x, z_c, density, pH
