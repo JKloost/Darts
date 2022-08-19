@@ -18,35 +18,47 @@ class Model(DartsModel):
         self.timer.node["initialization"].start()
 
         self.zero = 1e-11
-        perm = 100  # / (1 - solid_init) ** trans_exp
-        nx = 80
-        dx = np.array([0.308641975, 0.617283951, 0.925925926, 1.234567901, 1.543209877, 1.851851852, 2.160493827,
-                       2.469135802, 2.777777778, 3.086419753, 3.395061728, 3.703703704, 4.012345679, 4.320987654,
-                       4.62962963, 4.938271605, 5.24691358, 5.555555556, 5.864197531, 6.172839506, 6.481481481,
-                       6.790123457, 7.098765432, 7.407407407, 7.716049383, 8.024691358, 8.333333333, 8.641975309,
-                       8.950617284, 9.259259259, 9.567901235, 9.87654321, 10.18518519, 10.49382716, 10.80246914,
-                       11.11111111, 11.41975309, 11.72839506, 12.03703704, 12.34567901, 12.65432099, 12.96296296,
-                       13.27160494, 13.58024691, 13.88888889, 14.19753086, 14.50617284, 14.81481481, 15.12345679,
-                       15.43209877, 15.74074074, 16.04938272, 16.35802469, 16.66666667, 16.97530864, 17.28395062,
-                       17.59259259, 17.90123457, 18.20987654, 18.51851852, 18.82716049, 19.13580247, 19.44444444,
-                       19.75308642, 20.0617284, 20.37037037, 20.67901235, 20.98765432, 21.2962963, 21.60493827,
-                       21.91358025, 22.22222222, 22.5308642, 22.83950617, 23.14814815, 23.45679012, 23.7654321,
-                       24.07407407, 24.38271605, 24.69135802])  # totals 1000
-        dy = 100
-        dz = 100
-        self.reservoir = StructReservoir(self.timer, nx=nx, ny=1, nz=1, dx=dx, dy=dy, dz=dz, permx=perm, permy=perm,
-                                         permz=perm/10, poro=0.2, depth=2000)
+        np.random.seed(10)
+        (self.nx, self.ny, self.nz) = (100, 1, 30)
+        noise = 0.02
+        trans_exp = 3
+        nb = self.nx*self.ny*self.nz
+        self.poro = np.random.normal(0.22, noise, nb)
+        self.perm = np.ones(nb) * 1 / self.poro ** trans_exp
+        self.reservoir = StructReservoir(self.timer, nx=self.nx, ny=self.ny, nz=self.nz, dx=1, dy=1, dz=1,
+                                         permx=self.perm, permy=self.perm, permz=self.perm / 10, poro=self.poro,
+                                         depth=1000)
+        # perm = 100  # / (1 - solid_init) ** trans_exp
+        # nx = 80
+        # dx = np.array([0.308641975, 0.617283951, 0.925925926, 1.234567901, 1.543209877, 1.851851852, 2.160493827,
+        #                2.469135802, 2.777777778, 3.086419753, 3.395061728, 3.703703704, 4.012345679, 4.320987654,
+        #                4.62962963, 4.938271605, 5.24691358, 5.555555556, 5.864197531, 6.172839506, 6.481481481,
+        #                6.790123457, 7.098765432, 7.407407407, 7.716049383, 8.024691358, 8.333333333, 8.641975309,
+        #                8.950617284, 9.259259259, 9.567901235, 9.87654321, 10.18518519, 10.49382716, 10.80246914,
+        #                11.11111111, 11.41975309, 11.72839506, 12.03703704, 12.34567901, 12.65432099, 12.96296296,
+        #                13.27160494, 13.58024691, 13.88888889, 14.19753086, 14.50617284, 14.81481481, 15.12345679,
+        #                15.43209877, 15.74074074, 16.04938272, 16.35802469, 16.66666667, 16.97530864, 17.28395062,
+        #                17.59259259, 17.90123457, 18.20987654, 18.51851852, 18.82716049, 19.13580247, 19.44444444,
+        #                19.75308642, 20.0617284, 20.37037037, 20.67901235, 20.98765432, 21.2962963, 21.60493827,
+        #                21.91358025, 22.22222222, 22.5308642, 22.83950617, 23.14814815, 23.45679012, 23.7654321,
+        #                24.07407407, 24.38271605, 24.69135802])  # totals 1000
+        # dy = 100
+        # dz = 100
+        # self.reservoir = StructReservoir(self.timer, nx=nx, ny=1, nz=1, dx=dx, dy=dy, dz=dz, permx=perm, permy=perm,
+        #                                  permz=perm/10, poro=0.2, depth=2000)
 
         # """well location"""
         self.reservoir.add_well("I1")
-        self.reservoir.add_perforation(well=self.reservoir.wells[-1], i=1, j=1, k=1, multi_segment=False)
+        for k in range(self.nz):
+            self.reservoir.add_perforation(well=self.reservoir.wells[-1], i=1, j=1, k=k+1, multi_segment=False)
 
         self.reservoir.add_well("P1")
-        self.reservoir.add_perforation(well=self.reservoir.wells[-1], i=nx, j=1, k=1, multi_segment=False)
+        for k in range(self.nz):
+            self.reservoir.add_perforation(well=self.reservoir.wells[-1], i=self.nx, j=1, k=k+1, multi_segment=False)
 
         """Physical properties"""
         # Create property containers:
-        components_name = ['H2O', 'CO2', 'Na+', 'Cl-', 'Halite']
+        components_name = ['H2O', 'CO2', 'Na+', 'Cl-', 'NaCl']
         elements_name = ['H2O', 'CO2', 'Na+', 'Cl-']
         # E_mat = np.array([[1, 0, 0, 0, 0, 0, 0],
         #                   [0, 1, 0, 0, 0, 0, 1],
@@ -65,6 +77,10 @@ class Model(DartsModel):
         Mw = [18.015, 44.01, 22.99, 35.45, 58.44]
         # Mw = [18.015, 44.01, 22.99, 35.45, 58.44]
         self.reaktoro = Reaktoro()  # Initialise Reaktoro
+        Mw = np.zeros(len(components_name))
+        for i in range(len(Mw)):
+            component = Species(str(components_name[i]))
+            Mw[i] = component.molarMass() * 1000
         solid_density = np.zeros(1)
         solid_density[0] = 2000  # fill in density for amount of solids present
 
@@ -96,8 +112,8 @@ class Model(DartsModel):
         #                  H2O,                     CO2,    Ca++,       CO3--,      Na+, Cl-
         # H2O = 1 kg
         H2O = 55.5  # mol
-        Na = 4.5  # 3.44 # mol/kgW
-        Cl = 4.5  # mol/kgW
+        Na = 9  # 3.44 # mol/kgW
+        Cl = 9  # mol/kgW
         # Ca = 0.8
         # CO3 = 0.8
         ze = [H2O-4*self.zero, 0, Na, Cl]
@@ -126,17 +142,17 @@ class Model(DartsModel):
     # Initialize reservoir and set boundary conditions:
     def set_initial_conditions(self):
         """ initialize conditions for all scenarios"""
-        self.physics.set_uniform_initial_conditions(self.reservoir.mesh, 392.517, self.ini_stream)
+        self.physics.set_uniform_initial_conditions(self.reservoir.mesh, 100, self.ini_stream)
 
     def set_boundary_conditions(self):
         for i, w in enumerate(self.reservoir.wells):
             if i == 0:
                 # w.control = self.physics.new_rate_inj(0.2, self.inj_stream, 0)
-                w.control = self.physics.new_bhp_inj(392.517+100, self.inj_stream)
-                w.constraint = self.physics.new_rate_inj(500, self.inj_stream, 0)
+                w.control = self.physics.new_bhp_inj(120, self.inj_stream)
+                # w.constraint = self.physics.new_rate_inj(500, self.inj_stream, 0)
                 # well constraint max 500m3/day
             else:
-                w.control = self.physics.new_bhp_prod(392.517-10)
+                w.control = self.physics.new_bhp_prod(90)
 
     def set_op_list(self):
         self.op_num = np.array(self.reservoir.mesh.op_num, copy=False)
@@ -438,7 +454,14 @@ class Reaktoro:
         # conditions.charge(0)
         result = self.solver.solve(state)
         if not result.optima.succeeded:
-            print('Reaktoro did not find solution')
+            print('Reaktoro did not find solution, trying again')
+            z_e[0] = z_e[0]*2                         # not a good solution, but sometimes helps reaktoro find solution
+            for i in range(self.aq_comp.size()):
+                state.set(self.aq_comp[i], z_e[i], 'mol')
+            result2 = self.solver.solve(state)
+            if not result2.optima.succeeded:
+                print('Reaktoro did not find solution second time')
+                print(z_e)
         self.cp = ChemicalProps(state)
 
     def output(self):
