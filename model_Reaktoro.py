@@ -22,7 +22,7 @@ class Model(DartsModel):
         # self.db = SupcrtDatabase('supcrtbl')
         self.zero = 1e-11
         perm = 1  # np.array([1,1,0,0])  # mD # / (1 - solid_init) ** trans_exp
-        nx = 100
+        nx = 10
         self.reservoir = StructReservoir(self.timer, nx=nx, ny=1, nz=1, dx=1, dy=10, dz=1, permx=perm, permy=perm,
                                          permz=perm/10, poro=1, depth=1000)
 
@@ -113,7 +113,7 @@ class Model(DartsModel):
         solid_density = []
         self.property_container = model_properties(phases_name=['wat'],
                                                    components_name=components_name, elements_name=elements_name,
-                                                   reaktoro=self.reaktoro, E_mat=E_mat, diff_coef=1e-9, rock_comp=1e-7,
+                                                   reaktoro=self.reaktoro, E_mat=E_mat, diff_coef=1e-9, rock_comp=1e-5,
                                                    Mw=Mw, min_z=self.zero / 10, solid_dens=solid_density)
 
         """ properties correlations """
@@ -130,14 +130,19 @@ class Model(DartsModel):
         # self.property_container.kinetic_rate_ev = kinetic_basic(equi_prod, 1e-0, ne)
 
         """ Activate physics """
-        self.physics = Compositional(self.property_container, self.timer, n_points=7001, min_p=1, max_p=1000,
+        self.physics = Compositional(self.property_container, self.timer, n_points=1001, min_p=1, max_p=1000,
                                      min_z=self.zero / 10, max_z=1-self.zero, cache=0)
 
         self.ini_stream = z_e_ini[:-1]
         self.inj_stream = z_e_inj[:-1]
+        # print(self.ini_stream)
+        # print(self.inj_stream)
+        # exit()
         # self.ini_stream = [0.48, 0.48, 0.009, 0.009]
         # self.inj_stream = [0.47, 0.47, 0.02, 0.02]
-
+        # print(z_e_inj)
+        # print(z_e_ini)
+        # exit()
         self.params.first_ts = 1e-2
         self.params.max_ts = 10
         self.params.mult_ts = 2
