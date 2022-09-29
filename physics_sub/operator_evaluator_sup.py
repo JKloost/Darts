@@ -35,6 +35,7 @@ class ReservoirOperators(operator_set_evaluator_iface):
         nm = self.property.nm  # number of minerals
         nc_fl = nc - nm  # number of fluids (aq + gas)
         neq = ne + self.thermal  # number of equations
+        log_flag = self.property.log_flag
 
         # Total needs to be total of element based, as this will be the size of values
         #       al + bt        + gm + dlt + chi     + rock_temp por    + gr/cap  + por
@@ -46,9 +47,24 @@ class ReservoirOperators(operator_set_evaluator_iface):
         (self.sat, self.x, rho, self.rho_m, self.mu, self.kr, self.pc, self.ph) = self.property.evaluate(state)
 
         self.compr = (1 + self.property.rock_comp * (pressure - self.property.p_ref))  # compressible rock
-        ze = np.append(vec_state_as_np[1:ne], 1 - np.sum(vec_state_as_np[1:ne]))
-
-        phi = 1
+        if log_flag == 1:
+            ze = np.append(np.exp(vec_state_as_np[1:ne]), 1 - np.sum(np.exp(vec_state_as_np[1:ne])))
+        else:
+            ze = np.append(vec_state_as_np[1:ne], 1 - np.sum(vec_state_as_np[1:ne]))
+        rho_t = np.sum(np.multiply(rho, self.sat))
+        # print(rho_t)
+        # print(np.sum(np.multiply(rho, self.sat)))
+        # exit()
+        # print(self.x[-1])
+        # print(rho)
+        # print(self.sat)
+        # exit()
+        phi = 1# - (self.sat[-1] * rho[-1])/rho_t  # * (self.x[-1])  # - rho_t * self.sat[-1]
+        # print(phi)
+        # print(self.sat)
+        # print(rho_t)
+        # print(phi)
+        # exit()
         """ CONSTRUCT OPERATORS HERE """  # need to do matrix vector multiplication
 
         """ Alpha operator represents accumulation term """
@@ -58,7 +74,7 @@ class ReservoirOperators(operator_set_evaluator_iface):
             for i in range(ne):
                 density_tot_e[j] = np.sum((self.sat[j] * self.rho_m[j]) * np.sum(np.multiply(self.E_mat, self.x[j])))
         for i in range(ne):
-            values[i] = self.compr * ze[i] * sum(density_tot_e)  # z_e uncorrected
+            values[i] = self.compr * ze[i] * sum(density_tot_e) * phi  # z_e uncorrected
 
         """ Beta operator represents flux term: """  # Here we can keep nc_fl
         for j in self.ph:
@@ -67,8 +83,13 @@ class ReservoirOperators(operator_set_evaluator_iface):
             for i in range(nc_fl):
                 beta[i] = self.x[j][i] * self.rho_m[j] * self.kr[j] / self.mu[j]
                 # values[shift + i] = self.x[j][i] * self.rho_m[j] * self.kr[j] / self.mu[j]
+            # print(nc)
+            # print(ne)
+            # print(self.E_mat.shape[0])
+            # print(beta)
             for i in range(self.E_mat.shape[0]):
                 values[shift+i] = np.sum(np.multiply(self.E_mat[i], beta[i]))
+            # exit()
 
         """ Gamma operator for diffusion (same for thermal and isothermal) """
         shift = neq + neq * nph
@@ -90,10 +111,12 @@ class ReservoirOperators(operator_set_evaluator_iface):
         if self.property.kinetic_rate_ev:
             # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self.x, zc[4:])
             # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self,zc)
-            # kinetic_rate = [0,0,0,0]
+            kinetic_rate = [0,0,0,0]
+            # kinetic_rate = self.property.kinetic_rate
+
             for i in range(neq):
-                # values[shift + i] = kinetic_rate[i]
-                values[shift+i] = 0
+                values[shift + i] = 0
+                # values[shift+i] = 0
 
         """ Gravity and Capillarity operators """
         shift += neq
@@ -106,6 +129,10 @@ class ReservoirOperators(operator_set_evaluator_iface):
             values[shift + 3 + nph + i] = self.pc[i]
         # E5_> porosity
         values[shift + 3 + 2 * nph] = phi
+
+        # print(pressure, ze)
+        # print(self.x[0])
+        # print('.')
 
         return 0
 
@@ -139,6 +166,7 @@ class WellOperators(operator_set_evaluator_iface):
         nc_fl = nc - nm
         neq = ne + self.thermal
 
+
         #       al + bt        + gm + dlt + chi     + rock_temp por    + gr/cap  + por
         total = neq + neq * nph + nph + neq + neq * nph + 3 + 2 * nph + 1
 
@@ -148,7 +176,11 @@ class WellOperators(operator_set_evaluator_iface):
         (sat, x, rho, rho_m, mu, kr, pc, ph) = self.property.evaluate(state)
 
         self.compr = (1 + self.property.rock_comp * (pressure - self.property.p_ref))  # compressible rock
-        ze = np.append(vec_state_as_np[1:ne], 1 - np.sum(vec_state_as_np[1:ne]))
+        log_flag = self.property.log_flag
+        if log_flag == 1:
+            ze = np.append(np.exp(vec_state_as_np[1:ne]), 1 - np.sum(np.exp(vec_state_as_np[1:ne])))
+        else:
+            ze = np.append(vec_state_as_np[1:ne], 1 - np.sum(vec_state_as_np[1:ne]))
 
         density_tot = np.sum(sat * rho_m)
         density_tot_e = np.zeros(nph)
@@ -156,7 +188,8 @@ class WellOperators(operator_set_evaluator_iface):
             for i in range(ne):
                 density_tot_e[j] = np.sum((sat[j] * rho_m[j]) * np.sum(np.multiply(self.E_mat, x[j])))
         # zc = np.append(vec_state_as_np[1:nc], 1 - np.sum(vec_state_as_np[1:nc]))
-        phi = 1
+        rho_t = np.sum(np.multiply(rho, sat))
+        phi = 1 # - rho_t * sat[-1]
         """ CONSTRUCT OPERATORS HERE """
 
         """ Alpha operator represents accumulation term """
@@ -185,10 +218,11 @@ class WellOperators(operator_set_evaluator_iface):
         if self.property.kinetic_rate_ev:
             # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self.x, zc)
             # kinetic_rate = self.property.kinetic_reaktoro.evaluate(
-            # kinetic_rate = [0,0,0,0]
+            kinetic_rate = [0, 0, 0, 0]
+            # kinetic_rate = self.property.kinetic_rate
             for i in range(neq):
-                # values[shift + i] = kinetic_rate[i]
                 values[shift + i] = 0
+                # values[shift + i] = 0
 
         """ Gravity and Capillarity operators """
         shift += neq
@@ -199,6 +233,7 @@ class WellOperators(operator_set_evaluator_iface):
         # E4-> capillarity
         #for i in ph:
         #    values[shift + 3 + nph + i] = pc[i]
+
         # E5_> porosity
         values[shift + 3 + 2 * nph] = phi
 

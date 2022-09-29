@@ -116,7 +116,10 @@ class property_container:
         # Composition vector and pressure from state:
         vec_state_as_np = np.asarray(state)
         pressure = vec_state_as_np[0]
-        ze = np.append(vec_state_as_np[1:self.n_e], 1 - np.sum(vec_state_as_np[1:self.n_e]))
+        if self.log_flag == 1:
+            ze = np.append(np.exp(vec_state_as_np[1:self.n_e]), 1 - np.sum(np.exp(vec_state_as_np[1:self.n_e])))
+        else:
+            ze = np.append(vec_state_as_np[1:self.n_e], 1 - np.sum(vec_state_as_np[1:self.n_e]))
 
         if ze[-1] < 0:
             # print(zc)
@@ -129,6 +132,7 @@ class property_container:
 
         if len(ph) == 1:
             self.x = [self.x, np.zeros(self.nc)]  # this triggers only when single phase
+            #self.x = [x for xs in self.x for x in xs]
         for j in ph:
             M = 0
             # molar weight of mixture
@@ -185,4 +189,3 @@ class property_container:
         self.compute_saturation(ph)
 
         return self.sat, self.dens_m
-

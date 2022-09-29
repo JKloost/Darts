@@ -132,7 +132,23 @@ class PhaseRelPerm:
             self.sr = 0
             self.sr1 = 0
             self.n = 2
-
+        # self.Swc = swc
+        # self.Sgr = sgr
+        # if phase == 'oil':
+        #     self.kre = 0.32
+        #     self.sr = self.Swc
+        #     self.sr1 = self.Sgr
+        #     self.n = 6
+        # elif phase == 'gas':
+        #     self.kre = 1
+        #     self.sr = self.Swc
+        #     self.sr1 = self.Sgr
+        #     self.n = 2
+        # else:
+        #     self.kre = 1
+        #     self.sr = self.Sgr
+        #     self.sr1 = self.Swc
+        #     self.n = 6
 
     def evaluate(self, sat):
 

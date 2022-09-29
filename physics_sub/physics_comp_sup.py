@@ -24,9 +24,10 @@ class Compositional(PhysicsBase):
         self.n_vars = self.ne + thermal
         NE = self.n_vars
         self.vars = ['pressure', 'Temp']
-
-        self.n_axes_points = index_vector([n_points] * self.n_vars)
-
+        # Cl OH H CO3 Na
+        # self.n_axes_points = index_vector([n_points] * self.n_vars)
+        # self.n_axes_points = index_vector([101] + [101, 100001, 100001, 100001])
+        self.n_axes_points = index_vector(n_points)
         self.phases = property_container.phases_name
 
         """ Name of interpolation method and engine used for this physics: """
@@ -43,12 +44,18 @@ class Compositional(PhysicsBase):
             self.engine = eval("engine_super_%s%d_%d_t" % (platform, self.ne, self.nph))()
         else:
             self.vars = ['pressure'] + self.components
-            self.n_axes_min = value_vector([min_p] + [min_z] * (self.ne-1))
-            self.n_axes_max = value_vector([max_p] + [max_z] * (self.ne-1))
+            # self.n_axes_min = value_vector([min_p] + [min_z] * (self.ne-1))
+            # self.n_axes_min = value_vector([min_p] + [1e-11, 0.497, 0.497, 1e-7])
+            # self.n_axes_max = value_vector([max_p] + [max_z] * (self.ne-1))
+            # self.n_axes_max = value_vector([max_p] + [0.002, 0.5, 0.5, 9e-4])
+            # self.n_axes_max = value_vector([max_p] + [0.002, 1, 1, 1e-2])
+            self.n_axes_min = value_vector(np.append(min_p, min_z))
+            self.n_axes_max = value_vector(np.append(max_p, max_z))
+
+
             self.acc_flux_etor = ReservoirOperators(property_container)
             self.acc_flux_w_etor = WellOperators(property_container)              # Changed this from well to reservoir
             self.engine = eval("engine_super_%s%d_%d" % (platform, self.ne, self.nph))()
-
         self.rate_etor = RateOperators(property_container)
 
         if out_props:
