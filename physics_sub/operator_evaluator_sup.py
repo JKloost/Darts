@@ -52,19 +52,9 @@ class ReservoirOperators(operator_set_evaluator_iface):
         else:
             ze = np.append(vec_state_as_np[1:ne], 1 - np.sum(vec_state_as_np[1:ne]))
         rho_t = np.sum(np.multiply(rho, self.sat))
-        # print(rho_t)
-        # print(np.sum(np.multiply(rho, self.sat)))
-        # exit()
-        # print(self.x[-1])
-        # print(rho)
-        # print(self.sat)
-        # exit()
-        phi = 1# - (self.sat[-1] * rho[-1])/rho_t  # * (self.x[-1])  # - rho_t * self.sat[-1]
-        # print(phi)
-        # print(self.sat)
-        # print(rho_t)
-        # print(phi)
-        # exit()
+
+        phi = 1 # - (self.sat[-1] * rho[-1])/rho_t  # * (self.x[-1])  # - rho_t * self.sat[-1]
+
         """ CONSTRUCT OPERATORS HERE """  # need to do matrix vector multiplication
 
         """ Alpha operator represents accumulation term """
@@ -83,10 +73,6 @@ class ReservoirOperators(operator_set_evaluator_iface):
             for i in range(nc_fl):
                 beta[i] = self.x[j][i] * self.rho_m[j] * self.kr[j] / self.mu[j]
                 # values[shift + i] = self.x[j][i] * self.rho_m[j] * self.kr[j] / self.mu[j]
-            # print(nc)
-            # print(ne)
-            # print(self.E_mat.shape[0])
-            # print(beta)
             for i in range(self.E_mat.shape[0]):
                 values[shift+i] = np.sum(np.multiply(self.E_mat[i], beta[i]))
             # exit()
@@ -108,14 +94,16 @@ class ReservoirOperators(operator_set_evaluator_iface):
 
         """ Delta operator for reaction """
         shift += nph * neq
-        if self.property.kinetic_rate_ev:
+        # if self.property.kinetic_rate_ev:
+        kinetic_rate = [0, 0, 0, 0, -self.property.kin_rate, -self.property.kin_rate, 0, self.property.kin_rate]
             # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self.x, zc[4:])
             # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self,zc)
-            kinetic_rate = [0,0,0,0]
+            #kinetic_rate = [0,0,0,0]
             # kinetic_rate = self.property.kinetic_rate
+        for i in range(neq):
+            values[shift + i] = np.sum(np.multiply(self.E_mat[i], kinetic_rate[i]))
 
-            for i in range(neq):
-                values[shift + i] = 0
+            # print(kinetic_rate)
                 # values[shift+i] = 0
 
         """ Gravity and Capillarity operators """

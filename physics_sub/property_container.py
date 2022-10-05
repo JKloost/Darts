@@ -30,6 +30,7 @@ class property_container:
         self.capillary_pressure_ev = []
         self.kinetic_rate_ev = []
         self.flash_ev = 0
+        self.kin_rate = []
 
         # passing arguments
         self.x = np.zeros((self.nph, self.nc))
@@ -128,7 +129,8 @@ class property_container:
         self.clean_arrays()
         # two-phase flash - assume water phase is always present and water component last
 
-        ph, zc, density = self.run_flash(pressure, ze)
+        ph, zc, density, rate = self.run_flash(pressure, ze)
+        self.kin_rate = rate
 
         if len(ph) == 1:
             self.x = [self.x, np.zeros(self.nc)]  # this triggers only when single phase
