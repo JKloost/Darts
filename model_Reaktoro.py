@@ -34,7 +34,7 @@ class Model(DartsModel):
         dx = 1
         #nx = 500
         self.poro = np.ones(nx) * 0.2
-        self.reservoir = StructReservoir(self.timer, nx=nx, ny=1, nz=1, dx=dx, dy=10, dz=10, permx=perm, permy=perm,
+        self.reservoir = StructReservoir(self.timer, nx=nx, ny=1, nz=1, dx=dx, dy=10, dz=1, permx=perm, permy=perm,
                                          permz=perm/10, poro=self.poro, depth=2000)
         # """well location"""
         self.reservoir.add_well("I1")
@@ -45,8 +45,8 @@ class Model(DartsModel):
 
         """Physical properties"""
         # Create property containers:
-        # components_name = ['H2O', 'CO2', 'Ca+2', 'CO3-2', 'Calcite']
-        components_name = ['H2O', 'CO2', 'Na+', 'Cl-', 'Halite']
+        components_name = ['H2O', 'CO2', 'Ca+2', 'CO3-2', 'Calcite']
+        # components_name = ['H2O', 'CO2', 'Na+', 'Cl-', 'Halite']
         elements_name = components_name[:4]
 
         self.reaktoro = Reaktoro(components_name, len(elements_name))  # Initialise Reaktoro
@@ -72,7 +72,7 @@ class Model(DartsModel):
         log_flag = 0
 
         E_mat_ini = E_mat
-        components_name_Mw = ['H2O', 'CO2', 'Na+', 'Cl-', 'NaCl']
+        components_name_Mw = ['H2O', 'CO2', 'Ca+2', 'CO3-2', 'CaCO3']
         Mw = np.zeros(len(components_name_Mw))
         for i in range(len(Mw)):
             component = Species(str(components_name_Mw[i]))
@@ -163,11 +163,11 @@ class Model(DartsModel):
         # self.property_container.kinetic_rate_ev = kinetic_basic(equi_prod, 1e-0, ne)
 
         H2O = 55.5  # mol
-        Na = 10  # 3.44 # mol/kgW
-        Cl = 10  # mol/kgW
-        # Ca = 1
-        # CO3 = 1
-        z_e_ini = [H2O - 4 * self.zero, self.zero, Na, Cl]
+        # Na = 10  # 3.44 # mol/kgW
+        # Cl = 10  # mol/kgW
+        Ca = 1
+        CO3 = 1
+        z_e_ini = [H2O - 4 * self.zero, self.zero, Ca, CO3]
         z_e_ini = [float(i) / sum(z_e_ini) for i in z_e_ini]
         z_e_inj = [self.zero, 1-4*self.zero, self.zero, self.zero]
 
@@ -215,7 +215,7 @@ class Model(DartsModel):
         # print(z_e_inj)
         # print(z_e_ini)
         # exit()
-        self.params.first_ts = 1e-2
+        self.params.first_ts = 1e-5
         self.params.max_ts = 100
         self.params.mult_ts = 2
         self.params.log_transform = log_flag
@@ -415,10 +415,10 @@ class Reaktoro:
         db = PhreeqcDatabase('phreeqc.dat')
 
         '''Hardcode'''
-        self.aq_comp = StringList(['H2O', 'CO2', 'Na+', 'Cl-'])
+        self.aq_comp = StringList(['H2O', 'CO2', 'Ca+2', 'CO3-2'])
         self.ne = ne
         self.gas_comp = StringList(["H2O(g)", "CO2(g)"])
-        self.sol_comp = ['Halite']
+        self.sol_comp = ['Calcite']
         aq = AqueousPhase(self.aq_comp)
         gas = GaseousPhase(self.gas_comp)
         # aq.setActivityModel(ActivityModelHKF())
@@ -448,8 +448,8 @@ class Reaktoro:
         conditions = EquilibriumConditions(self.specs)
         conditions.temperature(temp, "kelvin")
         conditions.pressure(pres, "bar")
-        a_Na = float(ChemicalProps(self.state).speciesActivity('Na+'))
-        a_Cl = float(ChemicalProps(self.state).speciesActivity('Cl-'))
+        a_Na = float(ChemicalProps(self.state).speciesActivity('Ca+2'))
+        a_Cl = float(ChemicalProps(self.state).speciesActivity('CO3-2'))
         self.Q = a_Na * a_Cl
         # conditions.charge(0)
         result = self.solver.solve(self.state, conditions)
@@ -474,12 +474,12 @@ class Reaktoro:
         CO2_aq = self.cp.speciesAmount('CO2')
         CO2_g = self.cp.speciesAmount('CO2(g)')
         CO2 = CO2_aq + CO2_g
-        solid = self.cp.speciesAmount('Halite')
-        # solid2 = self.cp.speciesAmount('Calcite')
-        Na = self.cp.speciesAmount('Na+')
-        Cl = self.cp.speciesAmount('Cl-')
-        # Ca = self.cp.speciesAmount('Ca+2')
-        # CO3 = self.cp.speciesAmount('CO3-2')
+        # solid = self.cp.speciesAmount('Halite')
+        solid = self.cp.speciesAmount('Calcite')
+        # Na = self.cp.speciesAmount('Na+')
+        # Cl = self.cp.speciesAmount('Cl-')
+        Ca = self.cp.speciesAmount('Ca+2')
+        CO3 = self.cp.speciesAmount('CO3-2')
 
         total_mol = self.cp.amount()
         total_mol_sol = sol_props.amount() #  + sol_props2.amount()
@@ -525,7 +525,7 @@ class Reaktoro:
 
         '''Hardcode'''
         z_c = [float(H2O / total_mol), float(CO2 / total_mol),
-               float(Na / total_mol), float(Cl / total_mol),
+               float(Ca / total_mol), float(CO3 / total_mol),
                float(solid / total_mol)]
 
         density = [float(density_gas), float(density_aq), float(density_solid)]
@@ -535,14 +535,15 @@ class Reaktoro:
         pH = 7
         if self.failure:
             print('z_c', z_c)
-        a_Na = float(self.cp.speciesActivity('Na+'))
-        a_Cl = float(self.cp.speciesActivity('Cl-'))
+        a_Na = float(self.cp.speciesActivity('Ca+2'))
+        a_Cl = float(self.cp.speciesActivity('CO3-2'))
 
         K_eq = a_Na * a_Cl
         A = 0.8*float(S_s) * float(density_solid)/np.sum(density)  # area
-        A = 0
+        # A = 0.0001
         # print(A)
         # exit()
         k = 1 # rate constant
         rate = A * k * (1-self.Q/K_eq)
+        # print(rate)
         return nu, x, z_c, density, pH, rate
