@@ -52,9 +52,11 @@ class ReservoirOperators(operator_set_evaluator_iface):
         else:
             ze = np.append(vec_state_as_np[1:ne], 1 - np.sum(vec_state_as_np[1:ne]))
         rho_t = np.sum(np.multiply(rho, self.sat))
-
-        phi = 1 # - (self.sat[-1] * rho[-1])/rho_t  # * (self.x[-1])  # - rho_t * self.sat[-1]
-
+        phi = 1 - (self.sat[-1] * rho[-1])/rho_t  # * (self.x[-1])  # - rho_t * self.sat[-1]
+        # print(rho)
+        # exit()
+        # print(phi)
+        # exit()
         """ CONSTRUCT OPERATORS HERE """  # need to do matrix vector multiplication
 
         """ Alpha operator represents accumulation term """
@@ -95,11 +97,14 @@ class ReservoirOperators(operator_set_evaluator_iface):
         """ Delta operator for reaction """
         shift += nph * neq
         # if self.property.kinetic_rate_ev:
-        kinetic_rate = [0, 0, 0, 0, -self.property.kin_rate, -self.property.kin_rate, 0, self.property.kin_rate]
-            # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self.x, zc[4:])
-            # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self,zc)
-            #kinetic_rate = [0,0,0,0]
-            # kinetic_rate = self.property.kinetic_rate
+        #kinetic_rate = 0 # [0, 0, self.property.kin_rate, self.property.kin_rate, -self.property.kin_rate]
+        #h2o, co2, na, cl, halite
+        kinetic_rate = self.property.kinetic_rate_ev.evaluate(ze, pressure)
+        # print(kinetic_rate)
+        # exit()
+        # kinetic_rate = self.property.kinetic_rate_ev.evaluate(self,zc)
+        # kinetic_rate = [0,0,0,0]
+        # kinetic_rate = self.property.kinetic_rate
         for i in range(neq):
             values[shift + i] = np.sum(np.multiply(self.E_mat[i], kinetic_rate[i]))
 
@@ -119,7 +124,7 @@ class ReservoirOperators(operator_set_evaluator_iface):
         values[shift + 3 + 2 * nph] = phi
 
         # print(pressure, ze)
-        # print(self.x[0])
+        # print(self.x)
         # print('.')
 
         return 0
@@ -177,7 +182,7 @@ class WellOperators(operator_set_evaluator_iface):
                 density_tot_e[j] = np.sum((sat[j] * rho_m[j]) * np.sum(np.multiply(self.E_mat, x[j])))
         # zc = np.append(vec_state_as_np[1:nc], 1 - np.sum(vec_state_as_np[1:nc]))
         rho_t = np.sum(np.multiply(rho, sat))
-        phi = 1 # - rho_t * sat[-1]
+        phi = 1 - (sat[-1] * rho[-1])/rho_t
         """ CONSTRUCT OPERATORS HERE """
 
         """ Alpha operator represents accumulation term """
@@ -194,6 +199,7 @@ class WellOperators(operator_set_evaluator_iface):
                 # values[shift + i] = self.x[j][i] * self.rho_m[j] * self.kr[j] / self.mu[j]
             for i in range(self.E_mat.shape[0]):
                 values[shift + i] = np.sum(np.multiply(self.E_mat[i], beta[i]))
+
 
         """ Gamma operator for diffusion (same for thermal and isothermal) """
         shift = neq + neq * nph
@@ -247,8 +253,12 @@ class RateOperators(operator_set_evaluator_iface):
         """
         for i in range(self.nph):
             values[i] = 0
-
+        # print(state)
         (sat, x, rho, rho_m, mu, kr, pc, ph) = self.property.evaluate(state)
+        # print(sat)
+        # print(x)
+        # print(rho)
+        # print(ph)
 
         self.flux[:] = 0
         # step-1

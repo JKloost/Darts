@@ -91,19 +91,19 @@ class property_container:
             self.sat[2] = self.dens_m[0] * self.dens_m[1] * self.nu[2] / denom
         return
 
-    # def run_flash(self, pressure, zc):
-    #
-    #     (self.x, self.nu) = self.flash_ev.evaluate(pressure, zc)
-    #
-    #     ph = []
-    #     for j in range(self.nph):
-    #         if self.nu[j] > 0:
-    #             ph.append(j)
-    #
-    #     if len(ph) == 1:
-    #         self.x[ph[0]] = zc
-    #
-    #     return ph
+    def run_flash(self, pressure, zc):
+
+        (self.x, self.nu, dens) = self.run_flash_R(pressure, zc)
+
+        ph = []
+        for j in range(self.nph):
+            if self.nu[j] > 0:
+                ph.append(j)
+
+        if len(ph) == 1:
+            self.x[ph[0]] = zc
+
+        return ph, dens
 
 
 
@@ -129,8 +129,9 @@ class property_container:
         self.clean_arrays()
         # two-phase flash - assume water phase is always present and water component last
 
-        ph, zc, density, rate = self.run_flash(pressure, ze)
-        self.kin_rate = rate
+        # ph, zc, density, rate = self.run_flash(pressure, ze)
+        ph, density = self.run_flash(pressure, ze)
+        # self.kin_rate = rate
 
         if len(ph) == 1:
             self.x = [self.x, np.zeros(self.nc)]  # this triggers only when single phase
@@ -142,6 +143,7 @@ class property_container:
                 M += self.Mw[i] * self.x[j][i]
             # self.dens[j] = self.density_ev[self.phases_name[j]].evaluate(pressure, self.x[j][0])  # output in [kg/m3]
             self.dens = density
+            #self.dens = [1000, 1000, 1000]
             self.dens_m[j] = self.dens[j] / M
             self.mu[j] = self.viscosity_ev[self.phases_name[j]].evaluate()  # output in [cp]
 
@@ -152,6 +154,54 @@ class property_container:
             self.pc[j] = 0
 
         return self.sat, self.x, self.dens, self.dens_m, self.mu, self.kr, self.pc, ph
+
+    # def evaluate_rate_op(self, state):
+    #     """
+    #     Class methods which evaluates the state operators for the element based physics
+    #     :param state: state variables [pres, comp_0, ..., comp_N-1]
+    #     :param values: values of the operators (used for storing the operator values)
+    #     :return: updated value for operators, stored in values
+    #     """
+    #     # Composition vector and pressure from state:
+    #     vec_state_as_np = np.asarray(state)
+    #     pressure = vec_state_as_np[0]
+    #     if self.log_flag == 1:
+    #         ze = np.append(np.exp(vec_state_as_np[1:self.n_e]), 1 - np.sum(np.exp(vec_state_as_np[1:self.n_e])))
+    #     else:
+    #         ze = np.append(vec_state_as_np[1:self.n_e], 1 - np.sum(vec_state_as_np[1:self.n_e]))
+    #     # if ze[1] > 0.999:
+    #     #     ze = [self.min_z, 1-4*self.min_z, 0, 0]
+    #     # print(ze)
+    #     if ze[-1] < 0:
+    #         # print(zc)
+    #         ze = self.comp_out_of_bounds(ze)
+    #
+    #     self.clean_arrays()
+    #     # two-phase flash - assume water phase is always present and water component last
+    #
+    #     ph, zc, density, rate = self.run_flash(pressure, ze)
+    #     self.kin_rate = rate
+    #
+    #     if len(ph) == 1:
+    #         self.x = [self.x, np.zeros(self.nc)]  # this triggers only when single phase
+    #         #self.x = [x for xs in self.x for x in xs]
+    #     for j in ph:
+    #         M = 0
+    #         # molar weight of mixture
+    #         for i in range(self.nc):
+    #             M += self.Mw[i] * self.x[j][i]
+    #         self.dens[j] = self.density_ev[self.phases_name[j]].evaluate(pressure, self.x[j][0])  # output in [kg/m3]
+    #         # self.dens = density
+    #         self.dens_m[j] = self.dens[j] / M
+    #         self.mu[j] = self.viscosity_ev[self.phases_name[j]].evaluate()  # output in [cp]
+    #
+    #     self.compute_saturation(ph)
+    #
+    #     for j in ph:
+    #         self.kr[j] = self.rel_perm_ev[self.phases_name[j]].evaluate(self.sat[j])
+    #         self.pc[j] = 0
+    #
+    #     return self.sat, self.x, self.dens, self.dens_m, self.mu, self.kr, self.pc, ph
 
     def evaluate_thermal(self, state):
         """

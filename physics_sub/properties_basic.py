@@ -165,24 +165,87 @@ class PhaseRelPerm:
         return kr
 
 
-class kinetic_basic():
-    def __init__(self, equi_prod, kin_rate_cte, ne, combined_ions=True):
-        self.equi_prod = equi_prod
-        self.kin_rate_cte = kin_rate_cte
-        self.kinetic_rate = np.zeros(ne)
-        self.combined_ions = combined_ions
+class Reaktoro_kinetics():
+    def __init__(self, reaktoro):
+        self.reaktoro = reaktoro
 
-    def evaluate(self, x, nu_sol):
-        if self.combined_ions:
-            ion_prod = (x[1][1] / 2) ** 2
-            self.kinetic_rate[1] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
-            self.kinetic_rate[-1] = - 0.5 * self.kinetic_rate[1]
+    def evaluate(self, ze, pressure):
+        if self.reaktoro.kinetic_flag == 1:
+            state = ChemicalState(self.reaktoro.system)  # no solid
+            state.temperature(320, 'kelvin')
+            state.pressure(pressure, 'bar')
+            for i in range(self.reaktoro.aq_comp.size()):
+                # if ze[i] == 0:
+                #     ze[i] = 1e-50
+                state.set(self.reaktoro.aq_comp[i], ze[i], 'mol')
+            result = self.reaktoro.solver.solve(state)
+            a_Na = float(ChemicalProps(state).speciesActivity('Na+'))
+            a_Cl = float(ChemicalProps(state).speciesActivity('Cl-'))
+            # print(a_Na)
+            # print(a_Cl)
+            # exit()
+            Q = a_Na * a_Cl
+
+            state_solid = ChemicalState(self.reaktoro.system_kin)
+            state_solid.temperature(320, 'kelvin')
+            state_solid.pressure(pressure, 'bar')
+            for i in range(self.reaktoro.aq_comp.size()):
+                # if ze[i] == 0:
+                #     ze[i] = 1e-50
+                state_solid.set(self.reaktoro.aq_comp[i], ze[i], 'mol')
+            result_solid = self.reaktoro.solver_kin.solve(state_solid)
+            a_Na_solid = float(ChemicalProps(state_solid).speciesActivity('Na+'))
+            a_Cl_solid = float(ChemicalProps(state_solid).speciesActivity('Cl-'))
+            K = a_Na_solid * a_Cl_solid
+            # print(K)
+            cp_solid: ChemicalProps = ChemicalProps(state_solid)
+            gas_props: ChemicalPropsPhaseConstRef = cp_solid.phaseProps(0)
+            liq_props: ChemicalPropsPhaseConstRef = cp_solid.phaseProps(1)
+            solid_props: ChemicalPropsPhaseConstRef = cp_solid.phaseProps(2)
+            density_solid = float(solid_props.density())
+            density_tot = float(cp_solid.density())
+            n_tot = cp_solid.amount()
+            nu = [float(gas_props.amount()/n_tot), float(liq_props.amount()/n_tot), float(solid_props.amount()/n_tot)]
+            sat_s = (nu[-1]/density_solid)/density_tot
+            # # print(sat_s)
+            # exit()
+            A_f = 1
+            E_a = 1
+            R = 8.314
+            k = A_f * np.exp(-E_a / (R * 320))
+            k = 0.05
+            A = 0.8 * float(sat_s) * float(density_solid)/np.sum(density_tot)  # s_s = 0....
+            #A = 1
+            rate = A * k * (1 - Q / K)
+            if abs(rate) < 1e-30:
+                rate = 0
+            # print(rate)
+            # print(Q)
+            # print(K)
+            # exit()
         else:
-            ion_prod = x[1][1] * x[1][2]
-            self.kinetic_rate[1] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
-            self.kinetic_rate[2] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
-            self.kinetic_rate[-1] = - self.kinetic_rate[1]
-        return self.kinetic_rate
+            rate = 0
+        return [0, 0, -rate, -rate, rate]
+
+
+# class kinetic_basic():
+#     def __init__(self, equi_prod, kin_rate_cte, ne, combined_ions=True):
+#         self.equi_prod = equi_prod
+#         self.kin_rate_cte = kin_rate_cte
+#         self.kinetic_rate = np.zeros(ne)
+#         self.combined_ions = combined_ions
+#
+#     def evaluate(self, x, nu_sol):
+#         if self.combined_ions:
+#             ion_prod = (x[1][1] / 2) ** 2
+#             self.kinetic_rate[1] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
+#             self.kinetic_rate[-1] = - 0.5 * self.kinetic_rate[1]
+#         else:
+#             ion_prod = x[1][1] * x[1][2]
+#             self.kinetic_rate[1] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
+#             self.kinetic_rate[2] = - self.kin_rate_cte * (1 - ion_prod / self.equi_prod) * nu_sol
+#             self.kinetic_rate[-1] = - self.kinetic_rate[1]
+#         return self.kinetic_rate
 
 # class kinetic_basic():
 #     def __init__(self, equi_prod, kin_rate_cte, ne, combined_ions=True):
