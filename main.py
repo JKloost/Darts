@@ -18,7 +18,7 @@ n = Model()
 n.init()
 nu, x, z_c, z_e, density, pH, poro_diff, poro_diff2, poro_diff_tot, poro_diff_og, gas_list, gas_list2 = [], [], [], [], [], [], [], [], [], [], [], []
 H2O, Ca, Na, Cl, OH, H, NaCO3, CO3, HCO3, Calcite, NaOH, H2CO3, K, CO2, Halite = [], [], [], [], [], [], [], [], [], [], [], [], [], [], []
-n.run_python(1000, timestep_python=True)
+n.run_python(400, timestep_python=True)
 # for i in range(300):
 #     if i > 0:
 #         n.load_restart_data()
@@ -154,7 +154,7 @@ gas_sat, water_sat, solid_sat = [], [], []
 nu, x, z_c, density, pH, poro_diff, poro_diff2, poro_diff_tot, poro_diff_og, gas_list, gas_list2 = [], [], [], [], [], [], [], [], [], [], []
 H2O, Ca, Na, Cl, OH, H, NaCO3, CO3, HCO3, Calcite, NaOH, H2CO3, K, CO2, Halite = [], [], [], [], [], [], [], [], [], [], [], [], [], [], []
 for i in range(len(P)):
-    nu_output, x_output, z_c_output, density_output, pH_output, gas = n.flash_properties(z_darts[:, i], 320, P[i])  # itor
+    nu_output, x_output, z_c_output, density_output, pH_output, gas = n.flash_properties(z_darts[:, i], 350, P[i])  # itor
     if i == 0:
         print(z_c_output)
     # OH.append(z_c_output[1])
@@ -180,9 +180,9 @@ for i in range(len(P)):
     # water_sat.append(pH_output[1])
     # solid_sat.append(pH_output[2])
     if nu_output[1] < 1e-11:  # if water phase does not exist
-        density_output[1] = 1
+        density_output[1] = 0
     if nu_output[0] < 1e-11:
-        density_output[0] = 1
+        density_output[0] = 0
     density.append(density_output)
     #print(nu_output)
     # # print(len(nu_output), nu_output, density_output)
@@ -194,7 +194,9 @@ for i in range(len(P)):
 
 # print(P)
 # print(Halite)
-print(nu)
+H2O_mass = np.array(H2O)*(18.01528/1000)  # mol * Mw
+
+#print(nu)
 plt.figure(1)
 plt.plot(dx, P, label='pressure')
 plt.xlabel('x [m]')
@@ -205,8 +207,8 @@ plt.show()
 plt.figure(2)
 plt.plot(dx, z_darts[0], label='H2O')
 plt.plot(dx, z_darts[1], label='CO2')
-plt.plot(dx, z_darts[2], label='Na+')
-plt.plot(dx, z_darts[3], label='Cl-')
+plt.plot(dx, z_darts[2], label='Ca+2')
+plt.plot(dx, z_darts[3], label='CO3-2')
 # plt.plot(z_darts[4], label='Ca+2')
 # plt.plot(z_darts[5], label='CO3-2')
 # plt.plot(z_darts[4], label='CO3-2')
@@ -226,15 +228,15 @@ plt.plot(gas_list, '--', label='H2O(g)')
 plt.plot(dx, CO2, label='CO2')
 plt.plot(dx, gas_list2, '--', label='CO2(g)')
 # plt.plot(nu, ':', label='saturation')
-plt.plot(dx, Na, label='Na+')
-plt.plot(dx, Cl, label='Cl-')
+plt.plot(dx, Na, label='Ca+2')
+plt.plot(dx, Cl, label='CO3-2')
 # plt.plot(Ca, label='Ca+2')
 # plt.plot(CO3, label='CO3-2')
 # plt.plot(NaCO3, label='NaCO3')
 # plt.plot(NaHCO3, label='NaHCO3-')
 # plt.plot(NaOH, label='NaOH')
 # plt.plot(K, label='K+')
-plt.plot(dx, Halite, label='Halite')
+plt.plot(dx, Halite, label='Calcite')
 # plt.plot(Calcite, label='Calcite')
 # plt.yscale('log')
 plt.legend()
@@ -261,7 +263,7 @@ plt.show()
 # plt.show()
 
 plt.figure(5)
-plt.plot(dx, nu)
+plt.plot(dx, [item[1] for item in pH])
 plt.ylabel('Saturation')
 #plt.ylim([0,1])
 plt.xlabel('x dimensionless')
@@ -271,7 +273,7 @@ plt.show()
 plt.figure(6)
 # plt.plot(dx, poro_diff, label='Halite')
 # plt.plot(dx, poro_diff2, label='Calcite')
-plt.plot(poro_diff_og, label='Halite')
+plt.plot(dx, poro_diff_og, label='Calcite')
 plt.ylabel('$\Delta$ porosity')
 #plt.yscale('log')
 #plt.ylim([0,1])
@@ -280,3 +282,22 @@ plt.title('$\Delta$ porosity', y=1)
 plt.tight_layout()
 plt.legend()
 plt.show()
+
+# print(H2O_mass)
+# print(Na)
+
+molal_Ca = np.divide(Na, H2O_mass)
+molal_CO3 = np.divide(Cl, H2O_mass)
+molal_CO2 = np.divide(CO2, H2O_mass)
+
+df = pd.DataFrame({'dx': np.array(dx), 'Pressure': P, 'Water sat': np.array([item[1] for item in pH]),
+                   'Gas sat': np.array([item[0] for item in pH]), 'Sol sat': np.array([item[2] for item in pH]),
+                   'H2O(l)': np.array(H2O), 'CO2(aq)': np.array(CO2), 'H2O(g)': np.array(gas_list),
+                   'CO2(g)': np.array(gas_list2), 'Ca+2': np.array(Na), 'CO3-2': np.array(Cl),
+                   'Calcite': np.array(Halite), 'H2O gas': np.array(gas_list), 'CO2 gas': np.array(gas_list2),
+                   'Porosity change': np.array(poro_diff_og), 'Density gas': np.array([item[0] for item in density]),
+                   'Density water': np.array([item[1] for item in density]),
+                   'Density solid': np.array([item[2] for item in density]), 'Molal Ca+2': np.array(molal_Ca),
+                   'Molal CO3-2': molal_CO3, 'Molal CO2': molal_CO2})
+df.to_csv('data.csv')
+
