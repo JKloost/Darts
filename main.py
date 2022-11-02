@@ -18,7 +18,7 @@ n = Model()
 n.init()
 nu, x, z_c, z_e, density, pH, poro_diff, poro_diff2, poro_diff_tot, poro_diff_og, gas_list, gas_list2 = [], [], [], [], [], [], [], [], [], [], [], []
 H2O, Ca, Na, Cl, OH, H, NaCO3, CO3, HCO3, Calcite, NaOH, H2CO3, K, CO2, Halite = [], [], [], [], [], [], [], [], [], [], [], [], [], [], []
-n.run_python(400, timestep_python=True)
+n.run_python(490, timestep_python=True)
 # for i in range(300):
 #     if i > 0:
 #         n.load_restart_data()
@@ -263,7 +263,9 @@ plt.show()
 # plt.show()
 
 plt.figure(5)
-plt.plot(dx, [item[1] for item in pH])
+plt.plot(dx, [item[1] for item in pH], label='Water')
+# plt.plot(dx, [item[0] for item in pH], label='Gas')
+# plt.plot(dx, [item[2] for item in pH], label='Solid')
 plt.ylabel('Saturation')
 #plt.ylim([0,1])
 plt.xlabel('x dimensionless')
@@ -300,4 +302,3 @@ df = pd.DataFrame({'dx': np.array(dx), 'Pressure': P, 'Water sat': np.array([ite
                    'Density solid': np.array([item[2] for item in density]), 'Molal Ca+2': np.array(molal_Ca),
                    'Molal CO3-2': molal_CO3, 'Molal CO2': molal_CO2})
 df.to_csv('data.csv')
-
