@@ -250,11 +250,11 @@ class Model(DartsModel):
         # print(z_e_ini)
         # exit()
         self.params.first_ts = 1e-2
-        self.params.max_ts = 20
+        self.params.max_ts = 1
         self.params.mult_ts = 2
         self.params.log_transform = log_flag
 
-        self.params.tolerance_newton = 1e-4
+        self.params.tolerance_newton = 1e-5
         self.params.tolerance_linear = 1e-6
         self.params.max_i_newton = 10
         self.params.max_i_linear = 50
@@ -267,7 +267,7 @@ class Model(DartsModel):
     # Initialize reservoir and set boundary conditions:
     def set_initial_conditions(self):
         """ initialize conditions for all scenarios"""
-        self.physics.set_uniform_initial_conditions(self.reservoir.mesh, 200, self.ini_stream)
+        self.physics.set_uniform_initial_conditions(self.reservoir.mesh, 100, self.ini_stream)
         # volume = np.array(self.reservoir.volume, copy=False)
         # volume.fill(100)
         # volume[0] = 1e10
@@ -292,10 +292,10 @@ class Model(DartsModel):
             if i == 0:
                 # w.control = self.physics.new_rate_inj(0.2, self.inj_stream, 0)
                 # w.control = self.physics.new_bhp_inj(105, self.inj_stream)
-                w.control = self.physics.new_bhp_inj(205, self.inj_stream)
+                w.control = self.physics.new_bhp_inj(105, self.inj_stream)
                 #w.constraint = self.physics.new_rate_inj(500, self.inj_stream, 0)
             else:
-                w.control = self.physics.new_bhp_prod(195)
+                w.control = self.physics.new_bhp_prod(95)
 
     def set_op_list(self):
         self.op_num = np.array(self.reservoir.mesh.op_num, copy=False)
@@ -787,7 +787,7 @@ class Reaktoro:
         # print(aq_props.speciesMolalities().asarray())
         # exit()
         # pH = [float(aq_props.speciesMolality('CO2(aq)')), float(aq_props.speciesMolality('Na+')), float(aq_props.speciesMolality('Cl-'))]
-        gas = [H2O_g, CO2_g]
+        gas = [H2O_g/total_mol, CO2_g/total_mol]
         z = np.dot(np.array(nu), np.array(x))
 
         # for i in range(len(z)):
